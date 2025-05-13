@@ -7,6 +7,7 @@ interface PatientSelectorProps {
   selectedPatientId: string | null;
   onSelectPatient: (patientId: string) => void;
   isLoading: boolean;
+  error: string | null;
 }
 
 const PatientSelector: React.FC<PatientSelectorProps> = ({
@@ -14,7 +15,7 @@ const PatientSelector: React.FC<PatientSelectorProps> = ({
   selectedPatientId,
   onSelectPatient,
   isLoading
-}) => {
+})=> {
   return (
     <div className="fixed top-0 right-1/2 transform translate-x-1/2 z-50 bg-white shadow-lg rounded-b-lg px-4 py-2">
       <div className="flex items-center gap-2">

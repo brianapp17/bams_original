@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { searchMedicalRecords, fetchPatientInfo, fetchAllPatients, getCategoryLabel } from './api';
+import { searchMedicalRecords, fetchAllPatients, getCategoryLabel } from './api';
 import type { ApiResponse, PatientInfo, ChatMessage, PatientListItem } from './types';
 
 // Components
@@ -40,19 +40,27 @@ function App() {
 
   const loadPatientInfo = async (patientId: string) => {
     try {
-      const data = await fetchPatientInfo(patientId);
-      
-      if (data && data.results && data.results[0]) {
-        const patientData = data.results[0].document.structData;
-        if (patientData.Patient) {
-          setPatientInfo({
-            name: `${patientData.Patient.name[0].given.join(' ')} ${patientData.Patient.name[0].family}`,
-            id: patientData.Patient.id,
-            birthDate: patientData.Patient.birthDate,
-            gender: patientData.Patient.gender,
-            identifier: patientData.Patient.identifier[0].value,
-          });
+      const data = await searchMedicalRecords(patientId);
+      if (data.results) {
+        let patientFound = false;
+        for (const record of data.results) {
+            const patientRecord = record.document.structData;
+            if (patientRecord && patientRecord.Patient) {
+                const patient = patientRecord.Patient;
+                setPatientInfo({
+                    name: `${patient.name[0].given.join(' ')} ${patient.name[0].family}`,
+                    id: patient.id,
+                    birthDate: patient.birthDate,
+                    gender: patient.gender,
+                    identifier: patient.identifier[0].value,
+                });
+                patientFound = true;
+                break;
+            }
         }
+        if (!patientFound) { // if the patient is not found we throw an error
+          throw new Error("Patient data not found.");
+        } 
       }
     } catch (error) {
       console.error('Error fetching patient info:', error);
@@ -169,7 +177,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 ml-64 mr-96">
         {/* Header */}
-        <Header resetSearch={resetSearch} />
+        <Header resetSearch={resetSearch} patientId={selectedPatientId} />
 
         {/* Main Content */}
         <main className="max-w-4xl mx-auto px-4 py-8">
@@ -219,6 +227,7 @@ function App() {
         isChatLoading={isChatLoading}
         setIsChatLoading={setIsChatLoading}
         resultsData={results ? JSON.stringify(results) : null}
+        selectedPatientId={selectedPatientId}
       />
     </div>
   );

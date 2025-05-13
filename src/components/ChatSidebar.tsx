@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TestTube2, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
+import remarkGfm from 'remark-gfm';
 import { sendChatMessage } from '../api';
 
 const thinkingPhrases = [
@@ -22,6 +24,7 @@ interface ChatSidebarProps {
   isChatLoading: boolean;
   setIsChatLoading: React.Dispatch<React.SetStateAction<boolean>>;
   resultsData: string | null;
+  selectedPatientId: string | null;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -29,7 +32,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   setChatMessages,
   isChatLoading,
   setIsChatLoading,
-  resultsData
+  resultsData,
+  selectedPatientId
 }) => {
   const [currentMessage, setCurrentMessage] = useState('');
   const [currentThinkingPhrase, setCurrentThinkingPhrase] = useState(thinkingPhrases[0]);
@@ -58,7 +62,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentMessage.trim() || !resultsData) return;
+    if (!currentMessage.trim() || !resultsData || !selectedPatientId) return;
 
     const newMessage: ChatMessage = {
       role: 'user',
@@ -93,26 +97,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     setIsChatLoading(false);
   };
 
-  const formatChatbotResponse = (response: string) => {
-    const sections = response.split('\n\n-').map((section, index) => {
-      if (index === 0) return section.replace(/^-/, '');
-      return section;
-    });
-
-    return sections.map((section, index) => {
-      const [header, ...content] = section.split(':\n\n');
-      const formattedContent = content.join('\n\n').split('\n\n').map((paragraph, pIndex) => (
-        <p key={`p-${pIndex}`} className="mt-2">{paragraph}</p>
-      ));
-
-      return (
-        <div key={`section-${index}`} className="mb-4">
-          <h3 className="font-semibold text-gray-800 mb-2">{header}</h3>
-          {formattedContent}
-        </div>
-      );
-    });
-  };
 
   return (
     <aside className="w-96 bg-white border-l border-gray-200 p-4 fixed right-0 h-full flex flex-col">
@@ -142,7 +126,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 <p className="text-sm">{message.content}</p>
               ) : (
                 <div className="text-sm space-y-2">
-                  {formatChatbotResponse(message.content)}
+                      <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]}>
+                      </ReactMarkdown>
+
                 </div>
               )}
             </div>
@@ -168,8 +154,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         />
         <button
           type="submit"
-          disabled={isChatLoading}
-          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+          disabled={isChatLoading || !selectedPatientId}
+          className={`p-2 text-white rounded-lg hover:bg-blue-600 ${isChatLoading || !selectedPatientId ? 'bg-gray-400 opacity-50 cursor-not-allowed' : 'bg-blue-500'}`}
         >
           <Send className="w-5 h-5" />
         </button>

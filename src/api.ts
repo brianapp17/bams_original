@@ -1,3 +1,5 @@
+
+
 const PATIENT_SERVICES_URL = 'https://patientservices-127465468754.us-central1.run.app';
 const ALL_PATIENTS_URL = 'https://allpatientsid-127465468754.us-central1.run.app';
 const CHATBOT_API_URL = 'https://bamsgenerador-127465468754.us-central1.run.app';
@@ -87,6 +89,31 @@ export async function sendChatMessage(fhirData: string, consulta: string) {
   return response.json();
 }
 
+
+export async function fetchMarkdown(patientId: string): Promise<string> {
+  try {
+    const patientInfo = await searchMedicalRecords(patientId);
+
+    const response = await fetch('https://pdfbams-127465468754.us-central1.run.app', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt:`Fhir=${JSON.stringify(patientInfo)}`
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    return response.text();
+  } catch (error) {
+    throw new Error(`Failed to fetch markdown: ${error}`);
+  }
+}
+
 export function getCategoryLabel(category: string): string {
   const categoryMap: { [key: string]: string } = {
     'laboratory': 'Laboratorio',
@@ -114,3 +141,4 @@ export function getCategoryLabel(category: string): string {
 
   return categoryMap[category.toLowerCase()] || category;
 }
+
