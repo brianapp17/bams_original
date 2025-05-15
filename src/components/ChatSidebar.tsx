@@ -116,22 +116,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[90%] rounded-lg p-4 ${
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {message.role === 'user' ? (
-                <p className="text-sm">{message.content}</p>
-              ) : (
-                <div className="text-sm space-y-2">
-                      <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]}>
-                      </ReactMarkdown>
-
-                </div>
-              )}
-            </div>
+  className={`max-w-[90%] rounded-lg p-4 ${
+    message.role === 'user'
+      ? 'text-white'
+      : 'bg-gray-100 text-gray-800'
+  }`}
+  style={message.role === 'user' ? { backgroundColor: '#29a3ac' } : {}}
+>
+  {message.role === 'user' ? (
+    <p className="text-sm">{message.content}</p>
+  ) : (
+    <div className="text-sm space-y-2">
+      <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]} />
+    </div>
+  )}
+</div>
           </div>
         ))}
         {isChatLoading && (
