@@ -152,13 +152,29 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           placeholder="Haz una pregunta sobre los registros médicos..."
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button
-          type="submit"
-          disabled={isChatLoading || !selectedPatientId}
-          className={`p-2 text-white rounded-lg hover:bg-blue-600 ${isChatLoading || !selectedPatientId ? 'bg-gray-400 opacity-50 cursor-not-allowed' : 'bg-blue-500'}`}
-        >
-          <Send className="w-5 h-5" />
-        </button>
+       <button
+  type="submit"
+  disabled={isChatLoading || !selectedPatientId}
+  className={`p-2 text-white rounded-lg ${isChatLoading || !selectedPatientId ? 'bg-gray-400 opacity-50 cursor-not-allowed' : ''}`}
+  style={{
+    backgroundColor: isChatLoading || !selectedPatientId ? undefined : '#29a3ac'
+  }}
+  onMouseEnter={(e) => {
+    if (!isChatLoading && selectedPatientId) {
+      e.currentTarget.style.backgroundColor = '#238f96'; // hover color
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (!isChatLoading && selectedPatientId) {
+      e.currentTarget.style.backgroundColor = '#29a3ac';
+    }
+  }}
+>
+  <Send className="w-5 h-5" />
+</button>
+
+
+
       </form>
     </aside>
   );

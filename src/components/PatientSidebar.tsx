@@ -449,16 +449,34 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
         {patientInfo && (
           <div className="mt-8 flex flex-col items-center">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Notas AI</h3>
+
             {/* Microphone Button */}
             <button
-              onClick={handleMicButtonClick}
-              className={`w-16 h-16 rounded-full flex items-center justify-center ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-blue-500 hover:bg-blue-600'} text-white shadow-lg transition-colors`}
-              aria-label={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
-              title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
-              disabled={recordingError !== null}
-            >
-              <Mic className="w-8 h-8" />
-            </button>
+  onClick={handleMicButtonClick}
+  className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-colors 
+    ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
+  aria-label={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
+  title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
+  disabled={recordingError !== null}
+  style={{
+    backgroundColor: !isRecording ? '#29a3ac' : undefined
+  }}
+  onMouseEnter={(e) => {
+    if (!isRecording) {
+      e.currentTarget.style.backgroundColor = '#238f96'; // hover personalizado
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (!isRecording) {
+      e.currentTarget.style.backgroundColor = '#29a3ac';
+    }
+  }}
+>
+  <Mic className="w-8 h-8" />
+</button>
+
+
+
 
              {/* Indicador de estado de grabación o error */}
              {isRecording && <p className="mt-2 text-sm text-red-600">Grabando...</p>}
@@ -552,13 +570,33 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                     <FileUp className="w-4 h-4 mr-1"/> Subir
                 </button>
                 {/* Button for AI analysis */}
-                 <button
-                    onClick={handleAnalyzeExams} // <-- Conectamos la nueva función
-                    disabled={uploadedImages.length === 0 || !fhirData || isAnalyzing} // Deshabilitar si no hay imágenes, no hay datos FHIR o ya está analizando
-                    className={`text-sm py-2 px-3 rounded-md transition-colors flex items-center ${uploadedImages.length === 0 || !fhirData || isAnalyzing ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-                 >
-                    <Scan className="w-4 h-4 mr-1"/> Analizar AI
-                </button>
+                <button
+  onClick={handleAnalyzeExams}
+  disabled={uploadedImages.length === 0 || !fhirData || isAnalyzing}
+  className={`text-sm py-2 px-3 rounded-md transition-colors flex items-center 
+    ${uploadedImages.length === 0 || !fhirData || isAnalyzing ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'text-white'}`}
+  style={{
+    backgroundColor:
+      uploadedImages.length === 0 || !fhirData || isAnalyzing
+        ? undefined
+        : '#29a3ac'
+  }}
+  onMouseEnter={(e) => {
+    if (!(uploadedImages.length === 0 || !fhirData || isAnalyzing)) {
+      e.currentTarget.style.backgroundColor = '#238f96';
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (!(uploadedImages.length === 0 || !fhirData || isAnalyzing)) {
+      e.currentTarget.style.backgroundColor = '#29a3ac';
+    }
+  }}
+>
+  <Scan className="w-4 h-4 mr-1" /> Analizar AI
+</button>
+
+
+
             </div>
         </div>
         )}

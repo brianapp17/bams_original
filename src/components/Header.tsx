@@ -13,10 +13,10 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId }): JSX.Element 
   const [isDownloading, setIsDownloading] = useState(false);
   // Eliminamos loadingMessageIndex
   // const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-  const [buttonText, setButtonText] = useState("Generar PDF AI");
+  const [buttonText, setButtonText] = useState("Reporte AI");
 
   const loadingMessages = [
-    "Generar PDF AI",
+    "Reporte AI",
     "Analizando historial",
     "Leyendo expediente",
     "Resumiendo datos médicos",
@@ -126,14 +126,34 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId }): JSX.Element 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-2 text-blue-600 cursor-pointer" onClick={resetSearch}>
-        <TestTube2 className="w-6 h-6" /> <span className="text-lg font-medium">Búsqueda Médica SIS</span>
+        <TestTube2 className="w-6 h-6" /> <span className="text-lg font-medium">Búsqueda Artificial Médica Salud</span>
       </div>
       {patientId && (
-        <button
-          className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 ${isDownloading ? 'cursor-wait opacity-50' : ''}`}
-           onClick={handleDownload}
-          disabled={isDownloading}
-        >{buttonText}</button>
+
+<button
+className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 
+  ${isDownloading ? 'cursor-wait opacity-50' : ''}`}
+onClick={handleDownload}
+disabled={isDownloading}
+style={{
+  backgroundColor: isDownloading ? '#29a3ac' : '#29a3ac'
+}}
+onMouseEnter={(e) => {
+  if (!isDownloading) {
+    e.currentTarget.style.backgroundColor = '#238f96';
+  }
+}}
+onMouseLeave={(e) => {
+  if (!isDownloading) {
+    e.currentTarget.style.backgroundColor = '#29a3ac';
+  }
+}}
+>
+{buttonText}
+</button>
+
+
+
       )}
     </header>
   );
