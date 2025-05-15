@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
       }}
     >
       <div className="w-full max-w-2xl p-8 bg-white rounded-lg shadow-md flex">
-        {/* Left Section: Logo and Form */}
+        {/* Left Section: Logo and Frm */}
         <div className="w-1/2 pr-8 border-r border-gray-200">
           <div className="flex justify-center mb-6">
             <img src="/logo.PNG" alt="Company Logo" className="h-20" />

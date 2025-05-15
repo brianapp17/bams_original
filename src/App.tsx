@@ -11,6 +11,7 @@ import SearchBar from './components/SearchBar';
 import MedicalRecords from './components/MedicalRecords';
 import PatientSelector from './components/PatientSelector';
 import LoginPage from './components/LoginPage'; // Import LoginPage
+import DashboardPage from './components/DashboardPage'; // Import DashboardPage
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -222,6 +223,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={(
           <div className="min-h-screen bg-gray-50 flex">
             {/* Patient Selector */}
@@ -316,7 +318,9 @@ function App() {
               resultsData={fhirDataString} // <-- Ya pasas la data aquí
               selectedPatientId={selectedPatientId}
             />
-          </div>)} />
+          </div>
+        )}
+        />
       </Routes>
     </BrowserRouter>
   );

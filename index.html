@@ -5,9 +5,34 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema de Información Médica</title>
+    <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
+    <style>
+      df-messenger {
+        z-index: 999;
+        position: fixed;
+        --df-messenger-font-color: #000;
+        --df-messenger-font-family: Google Sans;
+        --df-messenger-chat-background: #FFFFFF;
+        --df-messenger-message-user-background: #d3e3fd;
+        --df-messenger-message-bot-background: #C8E6C9;
+        bottom: 16px;
+        right: 16px;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+    <df-messenger
+      location="us-central1"
+      project-id="prototipado-ia-robotica"
+      agent-id="278425b3-6187-4b4d-8ae5-f819ebcbe7c4"
+      language-code="es"
+      max-query-length="-1">
+      <df-messenger-chat-bubble
+        chat-title="Asistente de BAMS">
+      </df-messenger-chat-bubble>
+    </df-messenger>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
