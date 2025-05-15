@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { searchMedicalRecords, fetchAllPatients, getCategoryLabel } from './api';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import type { ApiResponse, PatientInfo, ChatMessage, PatientListItem } from './types';
 
 // Components
@@ -9,6 +10,7 @@ import Header from './components/Header';
 import SearchBar from './components/SearchBar';
 import MedicalRecords from './components/MedicalRecords';
 import PatientSelector from './components/PatientSelector';
+import LoginPage from './components/LoginPage'; // Import LoginPage
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -217,100 +219,106 @@ function App() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Patient Selector */}
-      {/* Container for the fixed PatientSelector (if it's fixed) */}
-      {/* If PatientSelector is NOT fixed, this container div is just for layout */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto flex-shrink-0">
-        <PatientSelector
-          patients={patients}
-          selectedPatientId={selectedPatientId}
-          onSelectPatient={handlePatientSelect}
-          isLoading={isLoadingPatients}
-          // Pass error prop - Corrected comment placement
-          error={error}
-        />
-      </div>
-
-
-      {/* Patient Info Sidebar (Fixed) */}
-      {/* This div creates space for the fixed sidebar on the left */}
-       <PatientSidebar
-          patientInfo={patientInfo}
-          categories={getCategories()}
-          selectedCategory={selectedCategory ? getCategoryLabel(selectedCategory) : null}
-          setSelectedCategory={setSelectedCategory}
-          fhirData={fhirDataString} // <-- PASANDO fhirData AL PatientSidebar
-       />
-
-
-      {/* Main Content */}
-      <div className="flex-1 mx-auto max-w-4xl px-4 py-8">
-        {/* Header */}
-        <Header resetSearch={resetSearch} patientId={selectedPatientId} />
-
-        {/* Main Content Area */}
-        <main className="max-w-4xl mx-auto px-4 py-8">
-          <h1 className="text-2xl font-semibold text-center text-gray-800 mb-2">
-            Registros Médicos del Paciente
-         </h1>
-          <p className="text-center text-gray-600 mb-6">
-            Visualice todos los registros médicos del paciente organizados por Inteligencia Artificial. Use el buscador
-            <br />para encontrar información específica.
-          </p>
-
-          {/* Display main error related to general loading/selection */}
-          {error && !isLoadingPatients && !selectedPatientId && !isLoading && (
-               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                <p className="font-medium">Error</p>
-                <p className="text-sm">{error}</p>
-               </div>
-          )}
-           {/* Display specific error message related to patient/record loading for selected patient */}
-           {error && selectedPatientId && !isLoading && (
-               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                <p className="font-medium">Error al cargar datos</p>
-                <p className="text-sm">{error}</p>
-               </div>
-           )}
-
-
-          {!selectedPatientId ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">Seleccione un paciente para ver sus registros médicos</p>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={(
+          <div className="min-h-screen bg-gray-50 flex">
+            {/* Patient Selector */}
+            {/* Container for the fixed PatientSelector (if it's fixed) */}
+            {/* If PatientSelector is NOT fixed, this container div is just for layout */}
+            <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <PatientSelector
+                patients={patients}
+                selectedPatientId={selectedPatientId}
+                onSelectPatient={handlePatientSelect}
+                isLoading={isLoadingPatients}
+                // Pass error prop - Corrected comment placement
+                error={error}
+              />
             </div>
-          ) : (
-            <>
-              {/* Search Bar */}
-              <SearchBar
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                handleSearch={handleSearch}
-              />
 
-              {/* Medical Records */}
-              <MedicalRecords
-                results={results}
-                isLoading={isLoading}
-                selectedCategory={selectedCategory}
-              />
-            </>
-          )}
-        </main>
-      </div>
 
-      {/* Chatbot Sidebar (Fixed) */}
-       {/* This div creates space for the fixed sidebar on the right */}
-       <div className="w-96 flex-shrink-0"></div> {/* Placeholder for fixed chat sidebar */}
-      <ChatSidebar
-        chatMessages={chatMessages}
-        setChatMessages={setChatMessages}
-        isChatLoading={isChatLoading}
-        setIsChatLoading={setIsChatLoading}
-        resultsData={fhirDataString} // <-- Ya pasas la data aquí
-        selectedPatientId={selectedPatientId}
-      />
-    </div>
+            {/* Patient Info Sidebar (Fixed) */}
+            {/* This div creates space for the fixed sidebar on the left */}
+            <PatientSidebar
+              patientInfo={patientInfo}
+              categories={getCategories()}
+              selectedCategory={selectedCategory ? getCategoryLabel(selectedCategory) : null}
+              setSelectedCategory={setSelectedCategory}
+              fhirData={fhirDataString} // <-- PASANDO fhirData AL PatientSidebar
+            />
+
+
+            {/* Main Content */}
+            <div className="flex-1 mx-auto max-w-4xl px-4 py-8">
+              {/* Header */}
+              <Header resetSearch={resetSearch} patientId={selectedPatientId} />
+
+              {/* Main Content Area */}
+              <main className="max-w-4xl mx-auto px-4 py-8">
+                <h1 className="text-2xl font-semibold text-center text-gray-800 mb-2">
+                  Registros Médicos del Paciente
+                </h1>
+                <p className="text-center text-gray-600 mb-6">
+                  Visualice todos los registros médicos del paciente organizados por Inteligencia Artificial. Use el buscador
+                  <br />para encontrar información específica.
+                </p>
+
+                {/* Display main error related to general loading/selection */}
+                {error && !isLoadingPatients && !selectedPatientId && !isLoading && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <p className="font-medium">Error</p>
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
+                {/* Display specific error message related to patient/record loading for selected patient */}
+                {error && selectedPatientId && !isLoading && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <p className="font-medium">Error al cargar datos</p>
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
+
+
+                {!selectedPatientId ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">Seleccione un paciente para ver sus registros médicos</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Search Bar */}
+                    <SearchBar
+                      searchQuery={searchQuery}
+                      setSearchQuery={setSearchQuery}
+                      handleSearch={handleSearch}
+                    />
+
+                    {/* Medical Records */}
+                    <MedicalRecords
+                      results={results}
+                      isLoading={isLoading}
+                      selectedCategory={selectedCategory}
+                    />
+                  </>
+                )}
+              </main>
+            </div>
+
+            {/* Chatbot Sidebar (Fixed) */}
+            {/* This div creates space for the fixed sidebar on the right */}
+            <div className="w-96 flex-shrink-0"></div> {/* Placeholder for fixed chat sidebar */}
+            <ChatSidebar
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              isChatLoading={isChatLoading}
+              setIsChatLoading={setIsChatLoading}
+              resultsData={fhirDataString} // <-- Ya pasas la data aquí
+              selectedPatientId={selectedPatientId}
+            />
+          </div>)} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
