@@ -12,6 +12,7 @@ import MedicalRecords from './components/MedicalRecords';
 import PatientSelector from './components/PatientSelector';
 import LoginPage from './components/LoginPage'; // Import LoginPage
 import DashboardPage from './components/DashboardPage'; // Import DashboardPage
+import NewConsultationPage from './components/NewConsultationPage'; // Import NewConsultationPage
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,6 +225,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/nueva-consulta" element={<NewConsultationPage />} />
         <Route path="/" element={(
           <div className="min-h-screen bg-gray-50 flex">
             {/* Patient Selector */}
@@ -253,7 +255,7 @@ function App() {
 
 
             {/* Main Content */}
-            <div className="flex-1 mx-auto max-w-4xl px-4 py-8">
+            <div className="flex-1 mx-auto max-w-8xl px-4 py-8">
               {/* Header */}
               <Header resetSearch={resetSearch} patientId={selectedPatientId} />
 

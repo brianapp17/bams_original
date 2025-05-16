@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <h1 className="text-4xl font-bold text-center text-teal-800 mb-8">Bienvenido a BAMS: Tu Asistente Clínico de IA</h1>
 
         <p className="text-center text-gray-700 text-lg mb-10">
@@ -113,9 +113,9 @@ const DashboardPage: React.FC = () => {
 
           {/* Feature 4: Notas por voz */}
           <div className="bg-white p-6 rounded-lg shadow-md border border-teal-200">
-            <h2 className="text-2xl font-semibold text-teal-700 mb-3">Notas por Voz Automatizadas con IA</h2>
+            <h2 className="text-2xl font-semibold text-teal-700 mb-3">Dictado Médico Inteligente</h2>
             <p className="text-gray-700 mb-4">
-              Crea y almacena notas médicas importantes mediante grabaciones de audio.
+              Crea y almacena notas médicas importantes mediante grabaciones de audio analizadas e interpretadas por IA para generar la nota.Con solo un botón.
               Documenta consultas y observaciones de manera rápida y conveniente.
             </p>
             <p className="text-sm text-gray-600">Integración con: <strong>Asociacion D</strong></p>

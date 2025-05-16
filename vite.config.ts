@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    exclude: [],
   },
   server: {
     origin: 'https://9000-idx-boltngit-1745443449544.cluster-f4iwdviaqvc2ct6pgytzw4xqy4.cloudworkstations.dev'
