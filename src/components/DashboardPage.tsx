@@ -58,7 +58,7 @@ const DashboardPage: React.FC = () => {
               </Link>
 
               {/* Expedientes button */}
-              <Link to="/" className="block bg-teal-600 text-white text-center py-3 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+              <Link to="/expedientes" className="block bg-teal-600 text-white text-center py-3 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
                  Expedientes
               </Link>
 

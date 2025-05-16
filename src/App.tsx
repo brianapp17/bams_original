@@ -13,6 +13,8 @@ import PatientSelector from './components/PatientSelector';
 import LoginPage from './components/LoginPage'; // Import LoginPage
 import DashboardPage from './components/DashboardPage'; // Import DashboardPage
 import NewConsultationPage from './components/NewConsultationPage'; // Import NewConsultationPage
+import PatientListPage from './components/PatientListPage'; // Import PatientListPage
+import ProfilePage from './components/ProfilePage'; // Import ProfilePage
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -226,22 +228,21 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/nueva-consulta" element={<NewConsultationPage />} />
+        <Route path="/expedientes" element={<PatientListPage />} />
+        <Route path="/configuracion" element={<ProfilePage />} />
+        {/* The root path '/' will render the main layout with sidebars */}
         <Route path="/" element={(
           <div className="min-h-screen bg-gray-50 flex">
             {/* Patient Selector */}
-            {/* Container for the fixed PatientSelector (if it's fixed) */}
-            {/* If PatientSelector is NOT fixed, this container div is just for layout */}
             <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto flex-shrink-0">
               <PatientSelector
                 patients={patients}
                 selectedPatientId={selectedPatientId}
                 onSelectPatient={handlePatientSelect}
                 isLoading={isLoadingPatients}
-                // Pass error prop - Corrected comment placement
                 error={error}
               />
             </div>
-
 
             {/* Patient Info Sidebar (Fixed) */}
             {/* This div creates space for the fixed sidebar on the left */}
@@ -250,9 +251,8 @@ function App() {
               categories={getCategories()}
               selectedCategory={selectedCategory ? getCategoryLabel(selectedCategory) : null}
               setSelectedCategory={setSelectedCategory}
-              fhirData={fhirDataString} // <-- PASANDO fhirData AL PatientSidebar
+              fhirData={fhirDataString}
             />
-
 
             {/* Main Content */}
             <div className="flex-1 mx-auto max-w-8xl px-4 py-8">
@@ -317,7 +317,7 @@ function App() {
               setChatMessages={setChatMessages}
               isChatLoading={isChatLoading}
               setIsChatLoading={setIsChatLoading}
-              resultsData={fhirDataString} // <-- Ya pasas la data aquí
+              resultsData={fhirDataString}
               selectedPatientId={selectedPatientId}
             />
           </div>
