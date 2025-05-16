@@ -15,27 +15,20 @@ const PatientListPage: React.FC = () => {
   const database = getDatabase(app);
   const navigate = useNavigate();
 
-  // Effect to fetch patients when the user is authenticated
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         const doctorUid = user.uid;
         const patientsRef = ref(database, `doctors/${doctorUid}/patients`);
-
         setIsLoadingPatients(true);
         setPatientsError(null);
 
-        // Using onValue for real-time data fetching
         const listener = onValue(patientsRef, (snapshot) => {
           const patientsData = snapshot.val();
           const loadedPatients: Patient[] = [];
           if (patientsData) {
-            // Convert the object of patients into an array
             Object.keys(patientsData).forEach(key => {
-              loadedPatients.push({
-                id: key,
-                ...patientsData[key]
-              } as Patient); // Type assertion
+              loadedPatients.push({ id: key, ...patientsData[key] } as Patient);
             });
           }
           setPatients(loadedPatients);
@@ -45,21 +38,16 @@ const PatientListPage: React.FC = () => {
           setPatientsError('Error al cargar la lista de pacientes.');
           setIsLoadingPatients(false);
         });
-
-        // Cleanup listener on component unmount or user logout
         return () => off(patientsRef, 'value', listener);
-
       } else {
-        // User is not logged in, clear patients and show error
         setPatients([]);
         setIsLoadingPatients(false);
-        setPatientsError('Debe iniciar sesión para ver la lista de pacientes.');
+        // setPatientsError('Debe iniciar sesión para ver la lista de pacientes.'); // Optional, as redirecting
+        navigate('/login'); // Redirect to login if not authenticated
       }
     });
-
-    // Cleanup auth state change listener
     return () => unsubscribeAuth();
-  }, [auth, database]); // Rerun effect if auth or database instances change
+  }, [auth, database, navigate]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -67,28 +55,38 @@ const PatientListPage: React.FC = () => {
 
    const filteredPatients = patients.filter(patient => {
     const query = searchQuery.toLowerCase();
-    // Ensure nested name properties are accessed safely and handle potential undefineds
     const fullName = `${patient.name?.[0]?.given?.[0] || ''} ${patient.name?.[0]?.family || ''}`.toLowerCase();
     const dui = patient.dui?.toLowerCase() || '';
-
     return fullName.includes(query) || dui.includes(query);
   });
 
   const handlePatientSelect = (patientId: string) => {
-      console.log("Selected patient with ID:", patientId);
-      // Navigate to the main patient records page with the selected patient ID
       navigate(`/?patientId=${patientId}`);
   }
 
+  // Conditional rendering: If still loading initial auth state, show minimal loader or nothing to avoid flash
+  if (isLoadingPatients && patients.length === 0 && !patientsError && auth.currentUser === null) {
+      // This condition tries to catch the very initial load before onAuthStateChanged has fired for the first time
+      // You might want a more sophisticated global loading state or a dedicated AuthContext for this.
+      return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Verificando autenticación...</p></div>;
+  }
+  
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+       <div className="mb-8">
+        <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Volver al Dashboard
+        </Link>
+      </div>
       <div className="max-w-8xl mx-auto">
         <h1 className="text-3xl font-bold text-teal-800 mb-6 text-center">Expedientes de Pacientes</h1>
         <p className="text-center text-gray-600 mb-8">
           Aquí puede visualizar y buscar en los expedientes de sus pacientes registrados.
         </p>
 
-        {/* Search Bar */}
         <div className="mb-6">
             <label htmlFor="patient-search" className="sr-only">Buscar paciente por DUI o nombre</label>
             <input
@@ -102,11 +100,12 @@ const PatientListPage: React.FC = () => {
             />
         </div>
 
-        {/* Display loading, error, or patient list */}
-        {isLoadingPatients ? (
+        {isLoadingPatients && patients.length === 0 ? (
           <div className="text-center text-gray-600 text-lg">Cargando expedientes...</div>
-        ) : patientsError ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+        ) : patientsError  && !auth.currentUser ? (
+          // If there's an auth-related error (like user not logged in), it will be handled by navigate
+          // This specific display is for other data fetching errors if the user IS logged in.
+           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
             <span className="block sm:inline">{patientsError}</span>
           </div>
         ) : filteredPatients.length === 0 ? (
@@ -127,8 +126,6 @@ const PatientListPage: React.FC = () => {
             ))}
           </div>
         )}
-
-         {/* Optional: Add some extra informational text or components if the list is short */}
          {!isLoadingPatients && !patientsError && patients.length > 0 && filteredPatients.length > 0 && filteredPatients.length < 6 && (
             <div className="mt-12 text-center text-gray-600 italic">
                 <p>Utilice la barra de búsqueda para encontrar pacientes rápidamente por nombre o DUI.</p>
