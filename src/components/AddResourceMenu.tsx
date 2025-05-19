@@ -9,7 +9,10 @@ const AddResourceMenu: React.FC<AddResourceMenuProps> = ({ onSelectResource, onC
   // Define the list of resources that can be added
   const resourceTypes = [
     { type: 'Observation', label: 'Observación' },
-    // Add other resource types as you create their forms
+    { type: 'Condition', label: 'Condición' },
+    { type: 'Encounter', label: 'Encuentro' },
+    { type: 'Procedure', label: 'Procedimiento' },
+    { type: 'MedicationAdministration', label: 'Medicamento Administrado' }, // Added MedicationAdministration
   ];
 
   return (

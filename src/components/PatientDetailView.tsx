@@ -15,6 +15,10 @@ import SearchBar from './SearchBar';
 import MedicalRecords from './MedicalRecords';
 import AddResourceMenu from './AddResourceMenu';
 import AddObservationForm from './AddObservationForm';
+import AddConditionForm from './AddConditionForm';
+import AddProcedureForm from './AddProcedureForm';
+import AddEncounterForm from './AddEncounterForm';
+import AddMedicationAdministrationForm from './AddMedicationAdministrationForm'; // Import AddMedicationAdministrationForm
 
 const PatientDetailView: React.FC = () => {
   const { patientId } = useParams<{ patientId?: string }>();
@@ -40,69 +44,80 @@ const PatientDetailView: React.FC = () => {
   const auth = getAuth(app);
   const database = getDatabase(app);
 
-  // Function to fetch medical records (Observations for now) directly from Firebase
+  // Function to fetch medical records from Firebase
   const fetchMedicalRecordsFromFirebase = useCallback((doctorUid: string, patientId: string) => {
     setIsLoadingRecords(true);
     setRecordsError(null);
-    // Point to the 'observations' node under the patient
-    const observationsRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
 
-    console.log(`[fetchMedicalRecordsFromFirebase] Setting up listener for: doctors/${doctorUid}/patients/${patientId}/observations`);
+    const resourcePaths = [
+      `doctors/${doctorUid}/patients/${patientId}/observations`,
+      `doctors/${doctorUid}/patients/${patientId}/conditions`,
+      `doctors/${doctorUid}/patients/${patientId}/procedures`,
+      `doctors/${doctorUid}/patients/${patientId}/encounters`,
+      `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`,
+    ];
 
-    const recordsListener = onValue(observationsRef, (snapshot) => {
-      const observationsData = snapshot.val();
-      console.log('[fetchMedicalRecordsFromFirebase] Raw data received from Firebase:', observationsData);
+    console.log(`[fetchMedicalRecordsFromFirebase] Setting up listeners for multiple paths`);
 
-      const formattedRecords: ApiResponse = { results: [] };
+    // Use an array to store unsubscribe functions for each listener
+    const unsubscribeFunctions: (() => void)[] = [];
+    const allRecords: any[] = [];
+    let loadedCount = 0;
 
-      if (observationsData) {
-        console.log('[fetchMedicalRecordsFromFirebase] Processing received data...');
-        // Iterate through the observations (which are key-value pairs in Firebase)
-        Object.keys(observationsData).forEach(key => {
-          const observation = observationsData[key];
-          // Check if the observation object itself is valid before pushing
-          if (observation && typeof observation === 'object') {
-               console.log(`[fetchMedicalRecordsFromFirebase] Formatting observation with key ${key}:`, observation);
-               // Format the observation data to match ApiResponse structure expected by MedicalRecords
-               formattedRecords.results.push({
-                 document: {
-                   structData: {
-                     // Place the observation data inside structData.Observation
-                     Observation: observation
-                   }
-                 },
-                 // You might need to add other metadata fields here if MedicalRecords uses them,
-                 // based on the previous structure from searchMedicalRecords.
-                 // Example: if MedicalRecords expects a 'resourceType' at the top level:
-                 // resource: { resourceType: 'Observation' }
-                 // Another example: adding a unique key/id to the top level if MedicalRecords needs it
-                 // key: key, // The Firebase push key
-                 // id: observation.id || key // Use the id from data if available, otherwise use Firebase key
-               });
-          } else {
-              console.warn(`[fetchMedicalRecordsFromFirebase] Skipping invalid observation data for key ${key}:`, observation);
+    const processSnapshot = (snapshot: any, resourceType: string) => {
+      const data = snapshot.val();
+      console.log(`[fetchMedicalRecordsFromFirebase] Raw ${resourceType} data received:`, data);
+      if (data) {
+        Object.keys(data).forEach(key => {
+          const record = data[key];
+          if (record && typeof record === 'object') {
+            const structData: { [key: string]: any } = {};
+            structData[resourceType] = record;
+            allRecords.push({
+              document: {
+                structData: structData
+              },
+            });
           }
         });
-         console.log('[fetchMedicalRecordsFromFirebase] Finished processing data.');
-      } else {
-          console.log('[fetchMedicalRecordsFromFirebase] No observation data found at this path.');
       }
+    };
 
+    const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount === resourcePaths.length) {
+            console.log('[fetchMedicalRecordsFromFirebase] All data loaded, final formatted records:', { results: allRecords });
+            setMedicalRecords({ results: allRecords });
+            setIsLoadingRecords(false);
+        }
+    };
 
-      console.log('[fetchMedicalRecordsFromFirebase] Final formatted data for MedicalRecords:', formattedRecords);
-      setMedicalRecords(formattedRecords);
-      setIsLoadingRecords(false); // Ensure loading is false after processing
+    const setupListener = (path: string, resourceType: string) => {
+      const dataRef = ref(database, path);
+      const listener = onValue(dataRef, (snapshot) => {
+        processSnapshot(snapshot, resourceType);
+        checkAllLoaded(); // Check if all listeners have fired at least once
+      }, (dbError) => {
+        console.error(`Error fetching ${resourceType} data from Firebase:`, dbError);
+        setRecordsError(`Error al cargar datos de ${resourceType.toLowerCase()} desde la base de datos.`);
+        checkAllLoaded(); // Still need to check if all others loaded, or handle error state
+      });
+      unsubscribeFunctions.push(() => off(dataRef, 'value', listener));
+    };
 
-    }, (dbError) => {
-      console.error("Error fetching medical records from Firebase:", dbError);
-      setRecordsError('Error al cargar registros médicos desde la base de datos.');
-      setIsLoadingRecords(false); // Ensure loading is false on error
-    });
+    setupListener(resourcePaths[0], 'Observation');
+    setupListener(resourcePaths[1], 'Condition');
+    setupListener(resourcePaths[2], 'Procedure');
+    setupListener(resourcePaths[3], 'Encounter');
+    setupListener(resourcePaths[4], 'MedicationAdministration');
 
-    return () => off(observationsRef, 'value', recordsListener); // Cleanup listener
+    return () => {
+      console.log('[fetchMedicalRecordsFromFirebase] Cleaning up all medical record listeners.');
+      unsubscribeFunctions.forEach(unsub => unsub());
+    };
+
   }, [database]);
 
-  // Effect to listen for patient data and medical records data changes in Firebase
   useEffect(() => {
     if (!patientId) {
       setPatientError('No se especificó un ID de paciente.');
@@ -123,7 +138,6 @@ const PatientDetailView: React.FC = () => {
         setIsLoadingPatient(true);
         setPatientError(null);
 
-        // Set up listener for patient demographic data
         unsubscribePatient = onValue(patientRef, (snapshot) => {
           const patientData = snapshot.val() as Patient;
           console.log('[useEffect] Patient data from Firebase:', patientData);
@@ -138,10 +152,8 @@ const PatientDetailView: React.FC = () => {
               identifier: patientData.identifier?.[0]?.value || patientData.dui,
             });
 
-            // Once patient data is loaded, set up listener for medical records
-            // Make sure patientId is not null before calling
              if (patientId && doctorUid) {
-               console.log('[useEffect] Patient data loaded, setting up medical records listener.');
+               console.log('[useEffect] Patient data loaded, setting up medical records listeners.');
                unsubscribeRecords = fetchMedicalRecordsFromFirebase(doctorUid, patientId);
              }
 
@@ -150,16 +162,15 @@ const PatientDetailView: React.FC = () => {
             setPatient(null);
             setPatientInfo(null);
             setPatientError('Paciente no encontrado en la base de datos.');
-            // If patient is not found, stop loading records as well
             setMedicalRecords(null);
             setIsLoadingRecords(false);
           }
-          setIsLoadingPatient(false); // Patient loading finished
+          setIsLoadingPatient(false);
         }, (dbError) => {
           console.error("Error fetching patient data from DB:", dbError);
           setPatientError('Error al cargar datos del paciente desde la base de datos.');
-          setIsLoadingPatient(false); // Patient loading finished
-          setIsLoadingRecords(false); // Stop loading records on patient data error
+          setIsLoadingPatient(false);
+          setIsLoadingRecords(false);
         });
 
       } else {
@@ -167,11 +178,10 @@ const PatientDetailView: React.FC = () => {
       }
     });
 
-    // Cleanup function for all listeners
     return () => {
       unsubscribeAuth();
       unsubscribePatient();
-      unsubscribeRecords();
+      if (unsubscribeRecords) unsubscribeRecords();
       console.log('[useEffect] Cleaning up Firebase listeners.');
     };
   }, [auth, database, navigate, patientId, fetchMedicalRecordsFromFirebase]);
@@ -181,12 +191,8 @@ const PatientDetailView: React.FC = () => {
     if (!medicalRecords?.results) return [];
     const categoriesMap = new Map<string, boolean>();
     medicalRecords.results.forEach(record => {
-      // Assuming your Firebase data structure maps to a similar format or you adapt it here
-      // The 'document.structData' part is based on the previous structure from searchMedicalRecords
-      // You might need to adjust this based on your Firebase data structure
       const data = record.document.structData;
       const extractCategories = (resource: any) => {
-          // This logic needs to read the category from the Observation resource in structData
           if (resource?.category) {
               resource.category.forEach((cat: any) => {
                   if (cat.text) categoriesMap.set(getCategoryLabel(cat.text), true);
@@ -198,11 +204,30 @@ const PatientDetailView: React.FC = () => {
                   }
               });
           }
+           if (!resource?.category && resource?.code?.text && resource.resourceType === 'Procedure') {
+               categoriesMap.set(getCategoryLabel('Procedimiento'), true); // Default category for procedures
+           }
+           if (!resource?.category && resource?.type && resource.resourceType === 'Encounter') {
+                resource.type.forEach((typeObj: any) => {
+                    if (typeObj.text) categoriesMap.set(getCategoryLabel(typeObj.text), true);
+                     if (typeObj.coding) {
+                         typeObj.coding.forEach((code: any) => {
+                             if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
+                             if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
+                         });
+                     }
+                });
+           }
+           if (!resource?.category && resource?.medication && resource.resourceType === 'MedicationAdministration') {
+                 categoriesMap.set(getCategoryLabel('Medication'), true); 
+            }
       };
 
-      // Check specifically for the Observation resource within structData
       if (data.Observation) extractCategories(data.Observation);
-      // TODO: Add logic here to extract categories from other resource types if you add them to Firebase
+      if (data.Condition) extractCategories(data.Condition);
+      if (data.Procedure) extractCategories(data.Procedure);
+      if (data.Encounter) extractCategories(data.Encounter);
+      if (data.MedicationAdministration) extractCategories(data.MedicationAdministration);
 
     });
     const categories = Array.from(categoriesMap.keys()).sort();
@@ -211,13 +236,11 @@ const PatientDetailView: React.FC = () => {
   }, [medicalRecords]);
 
 
-  // fhirDataString is likely used for the ChatSidebar, keep it for now
   const fhirDataString = medicalRecords ? JSON.stringify(medicalRecords, null, 2) : null;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Searching for:", searchQuery);
-    // Note: Search logic will now need to filter the data fetched from Firebase
   };
 
   const handleSelectResource = (resourceType: string) => {
@@ -225,62 +248,114 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveObservation = async (formData: any) => {
-    if (!patientId || !auth.currentUser) {
-      console.error('Cannot save observation: patientId or authenticated user is not defined.');
-      // Optionally show an error message to the user
-      return;
-    }
-
+    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
     const doctorUid = auth.currentUser.uid;
-    // Save under the 'observations' node
-    const observationsRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
-    const newObservationRef = push(observationsRef);
-
-    const observationDataToSave = {
-      id: newObservationRef.key, // Use the generated key as the ID
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
+    const newRef = push(dataRef);
+    const dataToSave = {
+      id: newRef.key,
       resourceType: "Observation",
       status: "final",
-      category: [{
-        coding: [{
-          system: "http://terminology.hl7.org/CodeSystem/observation-category",
-          code: "vital-signs",
-          display: "Vital Signs"
-        }],
-        text: "Observación"
-      }],
-      code: {
-        text: formData.codeText
-      },
-      subject: {
-        reference: `Patient/${patientId}`,
-        display: patientInfo?.name || 'Paciente Desconocido'
-      },
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs", display: "Vital Signs" }], text: "Observación" }],
+      code: { text: formData.codeText },
+      subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
       effectiveDateTime: formData.effectiveDateTime,
-      valueQuantity: {
-        value: parseFloat(formData.value),
-        unit: formData.unit
-      },
+      valueQuantity: { value: parseFloat(formData.value), unit: formData.unit },
       note: formData.noteText ? [{ text: formData.noteText }] : undefined
     };
+    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+  };
 
-    console.log('Saving Observation:', observationDataToSave);
+  const handleSaveCondition = async (formData: any) => {
+    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/conditions`);
+    const newRef = push(dataRef);
+    const dataToSave = {
+        id: newRef.key,
+        resourceType: "Condition",
+        clinicalStatus: { coding: [{ code: formData.clinicalStatus }] },
+        verificationStatus: { coding: [{ code: formData.verificationStatus }] },
+        category: [{ text: "Condición Médica" }],
+        code: { text: formData.codeText },
+        subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+        onsetDateTime: formData.onsetDateTime,
+        note: formData.noteText ? [{ text: formData.noteText }] : undefined
+    };
+    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+  };
 
-    try {
-      await set(newObservationRef, observationDataToSave);
-      console.log('Observation saved successfully to Firebase.');
-      // The onValue listener for medical records will automatically update the view
-      handleCancelAddResource();
-    } catch (error) {
-      console.error('Failed to save observation to Firebase:', error);
-      // Optionally show an error message to the user
-    }
+  const handleSaveProcedure = async (formData: any) => {
+    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/procedures`);
+    const newRef = push(dataRef);
+    const dataToSave = {
+        id: newRef.key,
+        resourceType: "Procedure",
+        status: formData.status,
+        code: { text: formData.codeText },
+        subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+        performedDateTime: formData.performedDateTime,
+        note: formData.noteText ? [{ text: formData.noteText }] : undefined
+    };
+    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+  };
+
+  const handleSaveEncounter = async (formData: any) => {
+    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/encounters`);
+    const newRef = push(dataRef);
+    const dataToSave = {
+        id: newRef.key,
+        resourceType: "Encounter",
+        status: "finished",
+        type: formData.type ? [{ text: formData.type }] : undefined,
+        period: { start: formData.periodStart, end: formData.periodEnd || undefined },
+        subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+        reason: formData.reason ? [{ text: formData.reason }] : undefined,
+        note: formData.noteText ? [{ text: formData.noteText }] : undefined
+    };
+    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+  };
+
+  // Handler to save a MedicationAdministration
+  const handleSaveMedicationAdministration = async (formData: any) => {
+      if (!patientId || !auth.currentUser) {
+          console.error('Cannot save medication administration: patientId or authenticated user is not defined.');
+          return;
+      }
+      const doctorUid = auth.currentUser.uid;
+      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`);
+      const newRef = push(dataRef);
+      const dataToSave = {
+          id: newRef.key,
+          resourceType: "MedicationAdministration",
+          status: "completed", // Default status
+          medication: { text: formData.medicationName },
+          subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+          effectiveDateTime: formData.effectiveDateTime,
+          dosage: {
+              dose: { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit },
+              route: { text: formData.route }
+          },
+          note: formData.noteText ? [{ text: formData.noteText }] : undefined
+      };
+      console.log('Saving MedicationAdministration:', dataToSave);
+      try {
+          await set(newRef, dataToSave);
+          console.log('MedicationAdministration saved successfully to Firebase.');
+          handleCancelAddResource();
+      } catch (error) {
+          console.error('Failed to save medication administration to Firebase:', error);
+      }
   };
 
   const handleCancelAddResource = () => {
     setSelectedResourceType(null);
     setShowAddResourceMenu(false);
   };
-
 
   if (isLoadingPatient) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando datos del paciente...</p></div>;
@@ -302,9 +377,7 @@ const PatientDetailView: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <Header resetSearch={function (): void {
-        console.log("resetSearch called in PatientDetailView");
-      } } patientId={patientId || null} />
+      <Header resetSearch={() => {}} patientId={patientId || null} />
       <div className="flex flex-1 p-4 gap-4 h-0 overflow-hidden">
         <div className="w-72 xl:w-80 flex-shrink-0 h-full">
           <PatientSidebar
@@ -363,6 +436,7 @@ const PatientDetailView: React.FC = () => {
           />
         </div>
 
+        {/* Conditional Rendering for Add Resource Menu and Forms */}
         {showAddResourceMenu && !selectedResourceType && (
           <AddResourceMenu
             onSelectResource={handleSelectResource}
@@ -376,6 +450,36 @@ const PatientDetailView: React.FC = () => {
             onCancel={() => setSelectedResourceType(null)}
           />
         )}
+
+        {showAddResourceMenu && selectedResourceType === 'Condition' && (
+            <AddConditionForm
+              onSave={handleSaveCondition}
+              onCancel={() => setSelectedResourceType(null)}
+            />
+        )}
+
+         {showAddResourceMenu && selectedResourceType === 'Procedure' && (
+            <AddProcedureForm
+              onSave={handleSaveProcedure}
+              onCancel={() => setSelectedResourceType(null)}
+            />
+        )}
+
+        {showAddResourceMenu && selectedResourceType === 'Encounter' && (
+            <AddEncounterForm
+              onSave={handleSaveEncounter}
+              onCancel={() => setSelectedResourceType(null)}
+            />
+        )}
+
+        {/* Render AddMedicationAdministrationForm when selectedResourceType is 'MedicationAdministration' */}
+        {showAddResourceMenu && selectedResourceType === 'MedicationAdministration' && (
+            <AddMedicationAdministrationForm
+              onSave={handleSaveMedicationAdministration}
+              onCancel={() => setSelectedResourceType(null)}
+            />
+        )}
+
       </div>
     </div>
   );

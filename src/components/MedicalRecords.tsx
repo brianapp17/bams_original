@@ -1,5 +1,5 @@
 import React from 'react';
-import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet } from 'lucide-react';
+import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet, HeartPulse, Stethoscope, CalendarClock, Scissors, Syringe } from 'lucide-react'; // Import Syringe or another icon for MedicationAdministration
 import { ApiResponse } from '../types';
 import { getCategoryLabel } from '../api';
 
@@ -15,7 +15,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
   selectedCategory 
 }) => {
   const formatDate = (dateString: string) => {
-    // Ensure dateString is valid before formatting
     if (!dateString) return 'Fecha desconocida';
     try {
         return new Date(dateString).toLocaleDateString('es-ES', {
@@ -31,6 +30,58 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
     }
   };
 
+   const getClinicalStatusDisplay = (status: string) => {
+       switch(status) {
+           case 'active': return 'Activo';
+           case 'remission': return 'Remisión';
+           case 'resolved': return 'Resuelto';
+           default: return status;
+       }
+   };
+
+   const getVerificationStatusDisplay = (status: string) => {
+       switch(status) {
+           case 'confirmed': return 'Confirmado';
+           case 'suspect': return 'Sospechoso';
+           default: return status;
+       }
+   };
+
+    const getEncounterStatusDisplay = (status: string) => {
+        return status;
+    };
+
+    const getProcedureStatusDisplay = (status: string) => {
+        switch(status) {
+            case 'completed': return 'Finalizado';
+            case 'in-progress': return 'En curso';
+            case 'suspended': return 'Suspendido';
+            default: return status;
+        }
+    };
+
+    const getMedicationAdministrationStatusDisplay = (status: string) => {
+        switch(status) {
+            case 'completed': return 'Completado';
+            case 'in-progress': return 'En progreso';
+            case 'on-hold': return 'En espera';
+            case 'stopped': return 'Detenido';
+            case 'entered-in-error': return 'Ingresado por error';
+            default: return status;
+        }
+    };
+
+    const getMedicationRouteDisplay = (route: string) => {
+         switch(route?.toLowerCase()) {
+            case 'oral': return 'Oral';
+            case 'intravenous': return 'Intravenosa';
+            case 'topical': return 'Tópica';
+            case 'subcutaneous': return 'Subcutánea';
+            default: return route;
+        }
+    };
+
+
   const filterResultsByCategory = (results: ApiResponse['results']) => {
     if (!selectedCategory) return results;
 
@@ -38,7 +89,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
       const data = result.document.structData;
       let matches = false;
 
-      // Check category based on the resource type present in structData
       if (data.DiagnosticReport?.category) {
         matches = data.DiagnosticReport.category.some((cat: any) => 
           cat.text === selectedCategory || 
@@ -46,15 +96,13 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         );
       }
 
-      // Check category for Observation
       if (data.Observation?.category) {
         matches = matches || data.Observation.category.some((cat: any) =>
-           cat.text === selectedCategory || // Also check text for Observation category
+           cat.text === selectedCategory ||
            cat.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
         );
       }
 
-      // Check category for Condition
       if (data.Condition?.category) {
         matches = matches || data.Condition.category.some((cat: any) =>
           cat.text === selectedCategory ||
@@ -62,7 +110,24 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         );
       }
 
-      // TODO: Add category checking for other resource types if needed
+      if (data.Encounter?.type) { 
+          matches = matches || data.Encounter.type.some((typeObj: any) =>
+              typeObj.text === selectedCategory ||
+              typeObj.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
+          );
+      }
+
+      if(data.Procedure?.code?.text) {
+           if(getCategoryLabel(data.Procedure.code.text) === selectedCategory || getCategoryLabel('Procedimiento') === selectedCategory) { 
+               matches = true;
+           }
+      }
+
+       if (data.MedicationAdministration?.medication?.text) {
+           if (getCategoryLabel(data.MedicationAdministration.medication.text) === selectedCategory || getCategoryLabel('Medication') === selectedCategory) {
+               matches = true;
+           }
+       }
 
       return matches;
     });
@@ -88,26 +153,25 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
     .map((result, index) => {
       const data = result.document.structData;
       let renderedContent = null;
-      let resourceKey = null; // To identify which resource type is present
+      let resourceKey = null; 
 
-      // Determine the resource type based on the keys in structData
       if (data.Observation) { resourceKey = 'Observation'; }
+      else if (data.Condition) { resourceKey = 'Condition'; }
+      else if (data.Encounter) { resourceKey = 'Encounter'; }
+      else if (data.Procedure) { resourceKey = 'Procedure'; } 
+      else if (data.MedicationAdministration) { resourceKey = 'MedicationAdministration'; } // Check for MedicationAdministration
       else if (data.DiagnosticReport) { resourceKey = 'DiagnosticReport'; }
       else if (data.ServiceRequest) { resourceKey = 'ServiceRequest'; }
       else if (data.MedicationRequest) { resourceKey = 'MedicationRequest'; }
       else if (data.MedicationDispense) { resourceKey = 'MedicationDispense'; }
-      else if (data.Condition) { resourceKey = 'Condition'; }
-      // TODO: Add checks for other resource types you might add
-
+      
       if (!resourceKey) {
-          // Skip if no known resource type is found in structData
           console.warn('Skipping record with unknown resource type in structData:', data);
           return null; 
       }
 
-      const resourceData = data[resourceKey]; // Get the actual resource data
+      const resourceData = data[resourceKey]; 
 
-      // Render based on the determined resource type
       switch(resourceKey) {
         case 'DiagnosticReport':
           renderedContent = (
@@ -128,7 +192,9 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                   )}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span>Fecha: {formatDate(resourceData.effectiveDateTime)}</span>
+                  {resourceData.effectiveDateTime && (
+                      <span>Fecha: {formatDate(resourceData.effectiveDateTime)}</span>
+                  )}
                   {resourceData.performer?.[0]?.display && (
                     <span>Realizado por: {resourceData.performer[0].display}</span>
                   )}
@@ -147,7 +213,8 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
               </h2>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-700">{resourceData.code.text}</span>
+                  <span className="font-medium text-gray-700">{resourceData.code?.text}</span>
+                  {resourceData.status && (
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     resourceData.status === 'final'
                       ? 'bg-green-100 text-green-800'
@@ -161,6 +228,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       ? 'Cancelado'
                       : 'Pendiente'}
                   </span>
+                   )}
                 </div>
                 {resourceData.valueQuantity && (
                   <div className="mt-2">
@@ -175,7 +243,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                 )}
                 <div className="text-sm text-gray-500">
                   <div className="flex items-center gap-4">
-                    {/* Ensure effectiveDateTime exists before formatting */}
                     {resourceData.effectiveDateTime && (
                         <span>Fecha: {formatDate(resourceData.effectiveDateTime)}</span>
                     )}
@@ -193,6 +260,192 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
             </section>
           );
            break;
+
+        case 'Condition':
+            renderedContent = (
+              <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-red-500" />
+                  Condición Médica
+                </h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-700">
+                      {resourceData.code?.text}
+                    </span>
+                    {resourceData.clinicalStatus?.coding?.[0]?.code && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                          resourceData.clinicalStatus.coding[0].code === 'active'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : resourceData.clinicalStatus.coding[0].code === 'remission'
+                            ? 'bg-blue-100 text-blue-800'
+                            : resourceData.clinicalStatus.coding[0].code === 'resolved'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                        {getClinicalStatusDisplay(resourceData.clinicalStatus.coding[0].code)}
+                      </span>
+                    )}
+                  </div>
+                  {resourceData.verificationStatus?.coding?.[0]?.code && (
+                       <div className="text-sm text-gray-600">
+                           Estado de verificación: {getVerificationStatusDisplay(resourceData.verificationStatus.coding[0].code)}
+                       </div>
+                  )}
+                  {resourceData.category?.[0]?.text && (
+                    <p className="text-sm text-gray-600">
+                      Categoría: {resourceData.category[0].text}
+                    </p>
+                  )}
+                  {resourceData.note && resourceData.note.length > 0 && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm text-gray-600">
+                        {resourceData.note[0].text}
+                      </p>
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-500">
+                    {resourceData.onsetDateTime && (
+                       <span>Fecha de inicio: {formatDate(resourceData.onsetDateTime)}</span>
+                    )}
+                    {resourceData.recordedDate && (
+                        <span>Registrado: {formatDate(resourceData.recordedDate)}</span>
+                    )}
+                  </div>
+                </div>
+              </section>
+            );
+            break;
+
+        case 'Encounter':
+            renderedContent = (
+              <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <CalendarClock className="w-5 h-5 text-purple-700" />
+                  Encuentro
+                </h2>
+                <div className="space-y-4">
+                   {resourceData.type?.[0]?.text && (
+                       <div>
+                           <span className="font-medium text-gray-700">Tipo: {resourceData.type[0].text}</span>
+                       </div>
+                   )}
+
+                  {resourceData.reason?.[0]?.text && (
+                      <div>
+                          <span className="font-medium text-gray-700">Motivo: {resourceData.reason[0].text}</span>
+                      </div>
+                  )}
+
+                  <div className="text-sm text-gray-500">
+                    <div className="flex items-center gap-4">
+                      {resourceData.period?.start && (
+                          <span>Fecha de inicio: {formatDate(resourceData.period.start)}</span>
+                      )}
+                      {resourceData.period?.end && (
+                          <span>Fecha de fin: {formatDate(resourceData.period.end)}</span>
+                      )}
+                    </div>
+                  </div>
+                  {resourceData.note && resourceData.note.length > 0 && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm text-gray-600">
+                        {resourceData.note[0].text}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+            break;
+
+        case 'Procedure': 
+             renderedContent = (
+               <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                 <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                   <Scissors className="w-5 h-5 text-orange-700" />
+                   Procedimiento
+                 </h2>
+                 <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                       <span className="font-medium text-gray-700">
+                         {resourceData.code?.text}
+                       </span>
+                       {resourceData.status && (
+                         <span className={`px-2 py-1 text-xs rounded-full ${
+                           resourceData.status === 'completed'
+                             ? 'bg-green-100 text-green-800'
+                             : resourceData.status === 'in-progress'
+                             ? 'bg-yellow-100 text-yellow-800'
+                             : resourceData.status === 'suspended'
+                             ? 'bg-red-100 text-red-800'
+                             : 'bg-gray-100 text-gray-800'
+                         }`}>
+                         {getProcedureStatusDisplay(resourceData.status)}
+                        </span>
+                       )}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {resourceData.performedDateTime && (
+                         <span>Fecha del procedimiento: {formatDate(resourceData.performedDateTime)}</span>
+                      )}
+                    </div>
+                    {resourceData.note && resourceData.note.length > 0 && (
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-600">
+                          {resourceData.note[0].text}
+                        </p>
+                      </div>
+                    )}
+                 </div>
+               </section>
+             );
+            break;
+
+        case 'MedicationAdministration': // Add case for MedicationAdministration
+            renderedContent = (
+              <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Syringe className="w-5 h-5 text-blue-700" /> {/* Use Syringe icon */}
+                  Medicamento Administrado
+                </h2>
+                <div className="space-y-4">
+                  {resourceData.medication?.text && (
+                       <div>
+                           <span className="font-medium text-gray-700">Medicamento: {resourceData.medication.text}</span>
+                       </div>
+                  )}
+                  {resourceData.dosage?.dose && (
+                    <p className="text-sm text-gray-700">
+                        Dosis: {resourceData.dosage.dose.value} {resourceData.dosage.dose.unit}
+                    </p>
+                  )}
+                  {resourceData.dosage?.route?.text && (
+                    <p className="text-sm text-gray-600">
+                        Vía: {getMedicationRouteDisplay(resourceData.dosage.route.text)}
+                    </p>
+                  )}
+                   {resourceData.status && (
+                     <p className="text-sm text-gray-600">
+                        Estado: {getMedicationAdministrationStatusDisplay(resourceData.status)}
+                     </p>
+                   )}
+                  <div className="text-sm text-gray-500">
+                    {resourceData.effectiveDateTime && (
+                        <span>Fecha de administración: {formatDate(resourceData.effectiveDateTime)}</span>
+                    )}
+                  </div>
+                  {resourceData.note && resourceData.note.length > 0 && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm text-gray-600">
+                        {resourceData.note[0].text}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+            break;
 
         case 'ServiceRequest':
           renderedContent = (
@@ -220,7 +473,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                 </div>
                 <div className="text-sm text-gray-500">
                   <div className="flex items-center gap-4">
-                     {/* Ensure authoredOn exists before formatting */}
                     {resourceData.authoredOn && (
                          <span>Fecha: {formatDate(resourceData.authoredOn)}</span>
                     )}
@@ -250,7 +502,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700">
-                    {resourceData.medication?.text} {/* Use resourceData.medication.text */}
+                    {resourceData.medication?.text}
                   </span>
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     resourceData.status === 'active'
@@ -275,7 +527,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                 )}
                 <div className="text-sm text-gray-500">
                   <div className="flex items-center gap-4">
-                    {/* Ensure authoredOn exists before formatting */}
                     {resourceData.authoredOn && (
                         <span>Fecha: {formatDate(resourceData.authoredOn)}</span>
                     )}
@@ -299,7 +550,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700">
-                    {resourceData.medication?.text} {/* Use resourceData.medication.text */}
+                    {resourceData.medication?.text}
                   </span>
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     resourceData.status === 'completed'
@@ -322,7 +573,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                     </div>
                 )}
                 <div className="text-sm text-gray-500">
-                   {/* Ensure whenHandedOver exists before formatting */}
                    {resourceData.whenHandedOver && (
                        <span>Fecha de entrega: {formatDate(resourceData.whenHandedOver)}</span>
                    )}
@@ -332,69 +582,17 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
           );
            break;
 
-        case 'Condition':
-          renderedContent = (
-            <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-red-500" />
-                Condición Médica
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-700">
-                    {resourceData.code.text}
-                  </span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    resourceData.clinicalStatus?.coding?.[0]?.code === 'active'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {resourceData.clinicalStatus?.coding?.[0]?.code === 'active'
-                      ? 'Activo'
-                      : 'Inactivo'}
-                  </span>
-                </div>
-                {resourceData.category?.[0]?.text && (
-                  <p className="text-sm text-gray-600">
-                    Categoría: {resourceData.category[0].text}
-                  </p>
-                )}
-                {resourceData.note && resourceData.note.length > 0 && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm text-gray-600">
-                      {resourceData.note[0].text}
-                    </p>
-                  </div>
-                )}
-                <div className="text-sm text-gray-500">
-                  <div className="flex items-center gap-4">
-                    {/* Ensure onsetDateTime and recordedDate exist before formatting */}
-                    {resourceData.onsetDateTime && (
-                         <span>Fecha de inicio: {formatDate(resourceData.onsetDateTime)}</span>
-                    )}
-                    {resourceData.recordedDate && (
-                        <span>Registrado: {formatDate(resourceData.recordedDate)}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-          );
-           break;
-
         default:
-          // If resourceKey is found but not matched in switch, log a warning
           console.warn('No rendering template for resource type:', resourceKey, 'with data:', resourceData);
           renderedContent = null;
       }
 
-      return renderedContent; // Return the rendered content or null
+      return renderedContent;
     });
 
   return (
     <div className="space-y-8">
-      {/* Render the filtered and formatted results */}
-      {filteredAndFormattedResults}
+      {filteredAndFormattedResults.filter(Boolean)}
     </div>
   );
 };
