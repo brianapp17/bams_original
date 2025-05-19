@@ -31,25 +31,7 @@ export async function fetchAllPatients() {
   }
 }
 
-export async function searchMedicalRecords(patientId: string, query: string = '') {
-  const response = await fetch(PATIENT_SERVICES_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      action: 'search',
-      patientId,
-      query,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch medical records');
-  }
-
-  return response.json();
-}
+// Removed searchMedicalRecords function
 
 export async function fetchPatientInfo(patientId: string) {
   const response = await fetch(PATIENT_SERVICES_URL, {
@@ -89,10 +71,11 @@ export async function sendChatMessage(fhirData: string, consulta: string) {
   return response.json();
 }
 
-
 export async function fetchMarkdown(patientId: string): Promise<string> {
   try {
-    const patientInfo = await searchMedicalRecords(patientId);
+    // Note: This still uses searchMedicalRecords internally, which will now fail.
+    // You might need to update this function to fetch from Firebase as well if needed.
+    const patientInfo = await fetchPatientInfo(patientId); // Changed to use fetchPatientInfo if searchMedicalRecords is removed globally
 
     const response = await fetch('https://pdfbams-127465468754.us-central1.run.app', {
       method: 'POST',
