@@ -42,7 +42,6 @@ const PatientListPage: React.FC = () => {
       } else {
         setPatients([]);
         setIsLoadingPatients(false);
-        // setPatientsError('Debe iniciar sesión para ver la lista de pacientes.'); // Optional, as redirecting
         navigate('/login'); // Redirect to login if not authenticated
       }
     });
@@ -61,13 +60,10 @@ const PatientListPage: React.FC = () => {
   });
 
   const handlePatientSelect = (patientId: string) => {
-      navigate(`/?patientId=${patientId}`);
+      navigate(`/expedientes/${patientId}`); // Corrected navigation path
   }
 
-  // Conditional rendering: If still loading initial auth state, show minimal loader or nothing to avoid flash
   if (isLoadingPatients && patients.length === 0 && !patientsError && auth.currentUser === null) {
-      // This condition tries to catch the very initial load before onAuthStateChanged has fired for the first time
-      // You might want a more sophisticated global loading state or a dedicated AuthContext for this.
       return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Verificando autenticación...</p></div>;
   }
   
@@ -103,8 +99,6 @@ const PatientListPage: React.FC = () => {
         {isLoadingPatients && patients.length === 0 ? (
           <div className="text-center text-gray-600 text-lg">Cargando expedientes...</div>
         ) : patientsError  && !auth.currentUser ? (
-          // If there's an auth-related error (like user not logged in), it will be handled by navigate
-          // This specific display is for other data fetching errors if the user IS logged in.
            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
             <span className="block sm:inline">{patientsError}</span>
           </div>

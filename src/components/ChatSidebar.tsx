@@ -1,3 +1,4 @@
+// ChatSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { TestTube2, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -41,7 +42,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      // Use a small delay to ensure DOM updates before scrolling
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 0);
     }
   }, [chatMessages]);
 
@@ -74,6 +80,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     setIsChatLoading(true);
 
     try {
+      // Asegúrate de enviar el contexto (resultsData) y la nueva pregunta (currentMessage)
       const response = await sendChatMessage(resultsData, currentMessage);
 
       setChatMessages(prev => [
@@ -99,16 +106,18 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 
   return (
-    <aside className="w-96 bg-white border-l border-gray-200 p-4 fixed right-0 h-full flex flex-col">
-      <div className="flex items-center gap-2 text-gray-800 mb-4">
+    // ROOT element: Must take full height and be a flex column container
+    <aside className="bg-white rounded-lg shadow-md h-full flex flex-col"> {/* Removed w-96, fixed, p-4, border-l, right-0 */}
+      {/* Header (Flex-shrink-0) */}
+      <div className="flex items-center gap-2 text-gray-800 p-4 pb-2 flex-shrink-0 border-b"> {/* Added p-4 pb-2, border-b, flex-shrink-0 */}
         <TestTube2 className="w-5 h-5" />
-        <span className="font-medium">BAMS</span>
+        <span className="font-medium">BAMS AI Chat</span> {/* Added AI Chat for clarity */}
       </div>
 
-      {/* Chat Messages */}
-      <div 
+      {/* Chat Messages (Flex-1, Scrollable) */}
+      <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 mb-4"
+        className="flex-1 overflow-y-auto space-y-4 p-4" // Added p-4
       >
         {chatMessages.map((message, index) => (
           <div
@@ -116,21 +125,18 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-  className={`max-w-[90%] rounded-lg p-4 ${
-    message.role === 'user'
-      ? 'text-white'
-      : 'bg-gray-100 text-gray-800'
-  }`}
-  style={message.role === 'user' ? { backgroundColor: '#29a3ac' } : {}}
->
-  {message.role === 'user' ? (
-    <p className="text-sm">{message.content}</p>
-  ) : (
-    <div className="text-sm space-y-2">
-      <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]} />
-    </div>
-  )}
-</div>
+              className={`max-w-[90%] rounded-lg p-3 text-sm ${ // Reduced padding slightly
+                message.role === 'user'
+                  ? 'text-white'
+                  : 'bg-gray-100 text-gray-800'
+              }`}
+              style={message.role === 'user' ? { backgroundColor: '#29a3ac' } : {}}
+            >
+              {/* Using ReactMarkdown for both roles for consistency and potential future markdown from user */}
+               <div className="prose prose-sm max-w-none"> {/* prose for markdown styles */}
+                <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]} />
+               </div>
+            </div>
           </div>
         ))}
         {isChatLoading && (
@@ -142,38 +148,36 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         )}
       </div>
 
-      {/* Chat Input */}
-      <form onSubmit={handleChatSubmit} className="flex gap-2">
+      {/* Chat Input (Flex-shrink-0) */}
+      <form onSubmit={handleChatSubmit} className="flex gap-2 p-4 border-t flex-shrink-0"> {/* Added p-4, border-t, flex-shrink-0 */}
         <input
           type="text"
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
           placeholder="Haz una pregunta sobre los registros médicos..."
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isChatLoading} // Disable input while loading
         />
        <button
-  type="submit"
-  disabled={isChatLoading || !selectedPatientId}
-  className={`p-2 text-white rounded-lg ${isChatLoading || !selectedPatientId ? 'bg-gray-400 opacity-50 cursor-not-allowed' : ''}`}
-  style={{
-    backgroundColor: isChatLoading || !selectedPatientId ? undefined : '#29a3ac'
-  }}
-  onMouseEnter={(e) => {
-    if (!isChatLoading && selectedPatientId) {
-      e.currentTarget.style.backgroundColor = '#238f96'; // hover color
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!isChatLoading && selectedPatientId) {
-      e.currentTarget.style.backgroundColor = '#29a3ac';
-    }
-  }}
->
-  <Send className="w-5 h-5" />
-</button>
-
-
-
+          type="submit"
+          disabled={isChatLoading || !selectedPatientId || !currentMessage.trim()} // Disable if no text
+          className={`p-2 text-white rounded-lg transition-colors ${isChatLoading || !selectedPatientId || !currentMessage.trim() ? 'bg-gray-400 opacity-50 cursor-not-allowed' : ''}`}
+          style={{
+            backgroundColor: isChatLoading || !selectedPatientId || !currentMessage.trim() ? undefined : '#29a3ac'
+          }}
+          onMouseEnter={(e) => {
+            if (!isChatLoading && selectedPatientId && currentMessage.trim()) {
+              e.currentTarget.style.backgroundColor = '#238f96'; // hover color
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isChatLoading && selectedPatientId && currentMessage.trim()) {
+              e.currentTarget.style.backgroundColor = '#29a3ac';
+            }
+          }}
+        >
+          <Send className="w-5 h-5" />
+        </button>
       </form>
     </aside>
   );
