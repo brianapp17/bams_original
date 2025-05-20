@@ -6,6 +6,7 @@ export interface ApiResponse {
 
 export interface ApiResult {
   document: {
+    id: any;
     structData: any;
   };
 }

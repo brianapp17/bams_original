@@ -7,6 +7,7 @@ interface AddClinicalImpressionFormProps {
 
 // ¡Añade 'export' aquí!
 export interface ClinicalImpressionFormData {
+  noteText: any;
   date: string;
   description: string;
   status: string; // completed / draft / entered-in-error
