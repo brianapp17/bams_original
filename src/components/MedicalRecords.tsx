@@ -1,5 +1,5 @@
 import React from 'react';
-import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet, HeartPulse, Stethoscope, CalendarClock, Scissors, Syringe } from 'lucide-react'; // Import Syringe or another icon for MedicationAdministration
+import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet, HeartPulse, Stethoscope, CalendarClock, Scissors, Syringe, AlertTriangle } from 'lucide-react'; // Import AlertTriangle for AllergyIntolerance
 import { ApiResponse } from '../types';
 import { getCategoryLabel } from '../api';
 
@@ -9,10 +9,10 @@ interface MedicalRecordsProps {
   selectedCategory: string | null;
 }
 
-const MedicalRecords: React.FC<MedicalRecordsProps> = ({ 
-  results, 
-  isLoading, 
-  selectedCategory 
+const MedicalRecords: React.FC<MedicalRecordsProps> = ({
+  results,
+  isLoading,
+  selectedCategory
 }) => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Fecha desconocida';
@@ -81,6 +81,15 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         }
     };
 
+    const getAllergyIntoleranceClinicalStatusDisplay = (status: string) => {
+        switch(status) {
+            case 'active': return 'Activa';
+            case 'inactive': return 'Inactiva';
+            case 'resolved': return 'Resuelta';
+            default: return status;
+        }
+    };
+
 
   const filterResultsByCategory = (results: ApiResponse['results']) => {
     if (!selectedCategory) return results;
@@ -89,45 +98,54 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
       const data = result.document.structData;
       let matches = false;
 
+      // Check existing resource types
       if (data.DiagnosticReport?.category) {
-        matches = data.DiagnosticReport.category.some((cat: any) => 
-          cat.text === selectedCategory || 
+        matches = data.DiagnosticReport.category.some((cat: any) =>
+          getCategoryLabel(cat.text) === selectedCategory ||
           cat.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
         );
       }
 
-      if (data.Observation?.category) {
-        matches = matches || data.Observation.category.some((cat: any) =>
-           cat.text === selectedCategory ||
+      if (!matches && data.Observation?.category) { // Use !matches to avoid unnecessary checks if a match is already found
+        matches = data.Observation.category.some((cat: any) =>
+           getCategoryLabel(cat.text) === selectedCategory ||
            cat.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
         );
       }
 
-      if (data.Condition?.category) {
-        matches = matches || data.Condition.category.some((cat: any) =>
-          cat.text === selectedCategory ||
+      if (!matches && data.Condition?.category) {
+        matches = data.Condition.category.some((cat: any) =>
+          getCategoryLabel(cat.text) === selectedCategory ||
           cat.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
         );
       }
 
-      if (data.Encounter?.type) { 
-          matches = matches || data.Encounter.type.some((typeObj: any) =>
-              typeObj.text === selectedCategory ||
+      if (!matches && data.Encounter?.type) {
+          matches = data.Encounter.type.some((typeObj: any) =>
+              getCategoryLabel(typeObj.text) === selectedCategory ||
               typeObj.coding?.some((code: any) => getCategoryLabel(code.code) === selectedCategory || getCategoryLabel(code.display) === selectedCategory)
           );
       }
 
-      if(data.Procedure?.code?.text) {
-           if(getCategoryLabel(data.Procedure.code.text) === selectedCategory || getCategoryLabel('Procedimiento') === selectedCategory) { 
+      if(!matches && data.Procedure?.code?.text) {
+           if(getCategoryLabel('Procedimiento') === selectedCategory) {
                matches = true;
            }
       }
 
-       if (data.MedicationAdministration?.medication?.text) {
-           if (getCategoryLabel(data.MedicationAdministration.medication.text) === selectedCategory || getCategoryLabel('Medication') === selectedCategory) {
+       if (!matches && (data.MedicationAdministration?.medication?.text || data.MedicationAdministrationDuplicate?.medication?.text)) {
+           if (getCategoryLabel('Medication') === selectedCategory) {
                matches = true;
            }
        }
+
+       // Add filtering for AllergyIntolerance
+        if (!matches && data.AllergyIntolerance) {
+             // Assuming AllergyIntolerance maps to the 'Alergias' category
+            if (getCategoryLabel('allergy') === selectedCategory || getCategoryLabel('Alergias') === selectedCategory) { // Check for both 'allergy' code and 'Alergias' label
+                matches = true;
+            }
+        }
 
       return matches;
     });
@@ -153,24 +171,27 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
     .map((result, index) => {
       const data = result.document.structData;
       let renderedContent = null;
-      let resourceKey = null; 
+      let resourceKey = null;
 
+      // Determine the resource type present in the structData
       if (data.Observation) { resourceKey = 'Observation'; }
       else if (data.Condition) { resourceKey = 'Condition'; }
       else if (data.Encounter) { resourceKey = 'Encounter'; }
-      else if (data.Procedure) { resourceKey = 'Procedure'; } 
+      else if (data.Procedure) { resourceKey = 'Procedure'; }
       else if (data.MedicationAdministration) { resourceKey = 'MedicationAdministration'; } // Check for MedicationAdministration
+      else if (data.MedicationAdministrationDuplicate) { resourceKey = 'MedicationAdministrationDuplicate'; } // Check for duplicated MedicationAdministration
       else if (data.DiagnosticReport) { resourceKey = 'DiagnosticReport'; }
       else if (data.ServiceRequest) { resourceKey = 'ServiceRequest'; }
       else if (data.MedicationRequest) { resourceKey = 'MedicationRequest'; }
       else if (data.MedicationDispense) { resourceKey = 'MedicationDispense'; }
-      
+      else if (data.AllergyIntolerance) { resourceKey = 'AllergyIntolerance'; } // Check for AllergyIntolerance
+
       if (!resourceKey) {
           console.warn('Skipping record with unknown resource type in structData:', data);
-          return null; 
+          return null;
       }
 
-      const resourceData = data[resourceKey]; 
+      const resourceData = data[resourceKey];
 
       switch(resourceKey) {
         case 'DiagnosticReport':
@@ -250,12 +271,13 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       <span>Realizado por: {resourceData.performer[0].display}</span>
                     )}
                   </div>
-                </div>
+                {/* Erroneous '}' was here from previous fix. Already removed. */}
                 {resourceData.note && resourceData.note.length > 0 && (
                   <div className="mt-3 p-3 bg-gray-50 rounded-md">
                     <p className="text-sm text-gray-600">{resourceData.note[0].text}</p>
                   </div>
                 )}
+                </div>
               </div>
             </section>
           );
@@ -359,7 +381,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
             );
             break;
 
-        case 'Procedure': 
+        case 'Procedure':
              renderedContent = (
                <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                  <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -402,11 +424,12 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
              );
             break;
 
-        case 'MedicationAdministration': // Add case for MedicationAdministration
+        case 'MedicationAdministration':
+        case 'MedicationAdministrationDuplicate':
             renderedContent = (
               <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Syringe className="w-5 h-5 text-blue-700" /> {/* Use Syringe icon */}
+                  <Syringe className="w-5 h-5 text-blue-700" />
                   Medicamento Administrado
                 </h2>
                 <div className="space-y-4">
@@ -534,6 +557,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       <span>Prescrito por: {resourceData.requester.display}</span>
                     )}
                   </div>
+                {/* Erroneous '}' removed from here */}
                 </div>
               </div>
             </section>
@@ -561,6 +585,15 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       ? 'Entregado'
                       : 'Pendiente'}
                   </span>
+                {/* NOTE: Another rogue '}' was here in the original code provided in the prompt for this case.
+                    It has been implicitly removed in this corrected version.
+                    The original prompt had:
+                    ...
+                    </span>
+                  } <--- THIS BRACE
+                  {resourceData.quantity && (
+                  ...
+                 */}
                 </div>
                 {resourceData.quantity && (
                    <div className="mt-2">
@@ -581,6 +614,34 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
             </section>
           );
            break;
+
+        case 'AllergyIntolerance':
+            renderedContent = (
+              <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  Alergia/Intolerancia
+                </h2>
+                <div className="space-y-4">
+                  {resourceData.code?.coding?.[0]?.display && (
+                       <div>
+                           <span className="font-medium text-gray-700">Sustancia/Código: {resourceData.code.coding[0].display}</span>
+                       </div>
+                  )}
+                   {resourceData.clinicalStatus?.coding?.[0]?.code && (
+                       <div className="text-sm text-gray-600">
+                           Estado clínico: {getAllergyIntoleranceClinicalStatusDisplay(resourceData.clinicalStatus.coding[0].code)}
+                       </div>
+                   )}
+                   {resourceData.recordedDate && (
+                       <div className="text-sm text-gray-500">
+                           Fecha de registro: {formatDate(resourceData.recordedDate)}
+                       </div>
+                   )}
+                </div>
+              </section>
+            );
+            break;
 
         default:
           console.warn('No rendering template for resource type:', resourceKey, 'with data:', resourceData);

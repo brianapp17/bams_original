@@ -19,6 +19,8 @@ import AddConditionForm from './AddConditionForm';
 import AddProcedureForm from './AddProcedureForm';
 import AddEncounterForm from './AddEncounterForm';
 import AddMedicationAdministrationForm from './AddMedicationAdministrationForm'; // Import AddMedicationAdministrationForm
+import AddMedicationAdministrationDuplicateForm from './AddMedicationAdministrationDuplicateForm'; // Import the new duplicated form
+import AddAllergyIntoleranceForm from './AddAllergyIntoleranceForm'; // Import the new AllergyIntolerance form
 
 const PatientDetailView: React.FC = () => {
   const { patientId } = useParams<{ patientId?: string }>();
@@ -55,61 +57,67 @@ const PatientDetailView: React.FC = () => {
       `doctors/${doctorUid}/patients/${patientId}/procedures`,
       `doctors/${doctorUid}/patients/${patientId}/encounters`,
       `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`,
+      `doctors/${doctorUid}/patients/${patientId}/medicationAdministrationsDuplicate`,
+      `doctors/${doctorUid}/patients/${patientId}/allergyIntolerances`, // Add path for AllergyIntolerance
     ];
 
     console.log(`[fetchMedicalRecordsFromFirebase] Setting up listeners for multiple paths`);
 
-    // Use an array to store unsubscribe functions for each listener
     const unsubscribeFunctions: (() => void)[] = [];
-    const allRecords: any[] = [];
-    let loadedCount = 0;
+    const dataAggregator: { [key: string]: any[] } = {};
+    resourcePaths.forEach(path => dataAggregator[path] = []);
 
-    const processSnapshot = (snapshot: any, resourceType: string) => {
-      const data = snapshot.val();
-      console.log(`[fetchMedicalRecordsFromFirebase] Raw ${resourceType} data received:`, data);
-      if (data) {
-        Object.keys(data).forEach(key => {
-          const record = data[key];
-          if (record && typeof record === 'object') {
-            const structData: { [key: string]: any } = {};
-            structData[resourceType] = record;
-            allRecords.push({
-              document: {
-                structData: structData
-              },
-            });
-          }
+    const updateAndSetMedicalRecords = () => {
+        const combinedRecords: any[] = [];
+        Object.values(dataAggregator).forEach(recordsForPath => {
+            combinedRecords.push(...recordsForPath);
         });
-      }
+        console.log('[fetchMedicalRecordsFromFirebase] All data (re-)aggregated, final formatted records:', { results: combinedRecords });
+        setMedicalRecords({ results: combinedRecords });
+        setIsLoadingRecords(false);
     };
 
-    const checkAllLoaded = () => {
-        loadedCount++;
-        if (loadedCount === resourcePaths.length) {
-            console.log('[fetchMedicalRecordsFromFirebase] All data loaded, final formatted records:', { results: allRecords });
-            setMedicalRecords({ results: allRecords });
-            setIsLoadingRecords(false);
-        }
-    };
 
-    const setupListener = (path: string, resourceType: string) => {
+    resourcePaths.forEach((path) => {
+      const resourceType = path.includes('observations') ? 'Observation' :
+                           path.includes('conditions') ? 'Condition' :
+                           path.includes('procedures') ? 'Procedure' :
+                           path.includes('encounters') ? 'Encounter' :
+                           path.includes('medicationAdministrationsDuplicate') ? 'MedicationAdministrationDuplicate' :
+                           path.includes('medicationAdministrations') ? 'MedicationAdministration' :
+                           path.includes('allergyIntolerances') ? 'AllergyIntolerance' : 'Unknown'; // Add AllergyIntolerance type mapping
+
       const dataRef = ref(database, path);
       const listener = onValue(dataRef, (snapshot) => {
-        processSnapshot(snapshot, resourceType);
-        checkAllLoaded(); // Check if all listeners have fired at least once
+        const recordsForThisPath: any[] = [];
+        const data = snapshot.val();
+        console.log(`[fetchMedicalRecordsFromFirebase] Live update for ${resourceType}:`, data);
+        if (data) {
+          Object.keys(data).forEach(key => {
+            const record = data[key];
+            if (record && typeof record === 'object') {
+              const structData: { [key: string]: any } = {};
+              structData[resourceType] = record;
+              recordsForThisPath.push({
+                document: { structData: structData },
+              });
+            }
+          });
+        }
+        dataAggregator[path] = recordsForThisPath;
+        updateAndSetMedicalRecords();
+
       }, (dbError) => {
         console.error(`Error fetching ${resourceType} data from Firebase:`, dbError);
         setRecordsError(`Error al cargar datos de ${resourceType.toLowerCase()} desde la base de datos.`);
-        checkAllLoaded(); // Still need to check if all others loaded, or handle error state
+        dataAggregator[path] = [];
+        updateAndSetMedicalRecords();
       });
       unsubscribeFunctions.push(() => off(dataRef, 'value', listener));
-    };
+    });
 
-    setupListener(resourcePaths[0], 'Observation');
-    setupListener(resourcePaths[1], 'Condition');
-    setupListener(resourcePaths[2], 'Procedure');
-    setupListener(resourcePaths[3], 'Encounter');
-    setupListener(resourcePaths[4], 'MedicationAdministration');
+    // No need for explicit loadedCount check here if updateAndSetMedicalRecords sets isLoadingRecords(false) on any data update
+    // This assumes that even empty data updates should stop the initial loading indicator for records.
 
     return () => {
       console.log('[fetchMedicalRecordsFromFirebase] Cleaning up all medical record listeners.');
@@ -127,52 +135,53 @@ const PatientDetailView: React.FC = () => {
     }
 
     let unsubscribePatient: () => void = () => {};
-    let unsubscribeRecords: () => void = () => {};
-    let unsubscribeAuth: () => void = () => {};
+    let unsubscribeRecordsCleanup: () => void = () => {};
 
-    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         const doctorUid = user.uid;
-        const patientRef = ref(database, `doctors/${doctorUid}/patients/${patientId}`);
+        console.log('[useEffect] Authenticated Doctor UID:', doctorUid);
 
-        setIsLoadingPatient(true);
-        setPatientError(null);
+        if (patientId) {
+             console.log('[useEffect] Fetching data for Patient ID:', patientId);
+             const patientRef = ref(database, `doctors/${doctorUid}/patients/${patientId}`);
 
-        unsubscribePatient = onValue(patientRef, (snapshot) => {
-          const patientData = snapshot.val() as Patient;
-          console.log('[useEffect] Patient data from Firebase:', patientData);
+            setIsLoadingPatient(true);
+            setPatientError(null);
 
-          if (patientData) {
-            setPatient(patientData);
-            setPatientInfo({
-              name: `${patientData.name?.[0]?.given?.join(' ') || ''} ${patientData.name?.[0]?.family || ''}`,
-              id: patientData.id,
-              birthDate: patientData.birthDate,
-              gender: patientData.gender,
-              identifier: patientData.identifier?.[0]?.value || patientData.dui,
+            unsubscribePatient = onValue(patientRef, (snapshot) => {
+              const patientData = snapshot.val() as Patient;
+              console.log('[useEffect] Patient data from Firebase:', patientData);
+
+              if (patientData) {
+                setPatient(patientData);
+                setPatientInfo({
+                     name: `${patientData.name?.[0]?.given?.join(' ') || ''} ${patientData.name?.[0]?.family || ''}`,
+                     id: patientData.id,
+                     birthDate: patientData.birthDate,
+                     gender: patientData.gender,
+                     identifier: patientData.identifier?.[0]?.value || patientData.dui,
+                 });
+
+                if (unsubscribeRecordsCleanup) unsubscribeRecordsCleanup();
+                unsubscribeRecordsCleanup = fetchMedicalRecordsFromFirebase(doctorUid, patientId);
+
+              } else {
+                console.log('[useEffect] Patient not found in database.');
+                setPatient(null);
+                setPatientInfo(null);
+                setMedicalRecords(null);
+                setPatientError('Paciente no encontrado en la base de datos.');
+                setIsLoadingRecords(false);
+              }
+              setIsLoadingPatient(false);
+            }, (dbError) => {
+              console.error("Error fetching patient data from DB:", dbError);
+              setPatientError('Error al cargar datos del paciente desde la base de datos.');
+              setIsLoadingPatient(false);
+              setIsLoadingRecords(false);
             });
-
-             if (patientId && doctorUid) {
-               console.log('[useEffect] Patient data loaded, setting up medical records listeners.');
-               unsubscribeRecords = fetchMedicalRecordsFromFirebase(doctorUid, patientId);
-             }
-
-          } else {
-            console.log('[useEffect] Patient not found in database.');
-            setPatient(null);
-            setPatientInfo(null);
-            setPatientError('Paciente no encontrado en la base de datos.');
-            setMedicalRecords(null);
-            setIsLoadingRecords(false);
-          }
-          setIsLoadingPatient(false);
-        }, (dbError) => {
-          console.error("Error fetching patient data from DB:", dbError);
-          setPatientError('Error al cargar datos del paciente desde la base de datos.');
-          setIsLoadingPatient(false);
-          setIsLoadingRecords(false);
-        });
-
+        }
       } else {
         navigate('/login');
       }
@@ -181,7 +190,7 @@ const PatientDetailView: React.FC = () => {
     return () => {
       unsubscribeAuth();
       unsubscribePatient();
-      if (unsubscribeRecords) unsubscribeRecords();
+      if (unsubscribeRecordsCleanup) unsubscribeRecordsCleanup();
       console.log('[useEffect] Cleaning up Firebase listeners.');
     };
   }, [auth, database, navigate, patientId, fetchMedicalRecordsFromFirebase]);
@@ -192,7 +201,7 @@ const PatientDetailView: React.FC = () => {
     const categoriesMap = new Map<string, boolean>();
     medicalRecords.results.forEach(record => {
       const data = record.document.structData;
-      const extractCategories = (resource: any) => {
+      const extractCategories = (resource: any, resourceTypeKey: string) => {
           if (resource?.category) {
               resource.category.forEach((cat: any) => {
                   if (cat.text) categoriesMap.set(getCategoryLabel(cat.text), true);
@@ -204,34 +213,53 @@ const PatientDetailView: React.FC = () => {
                   }
               });
           }
-           if (!resource?.category && resource?.code?.text && resource.resourceType === 'Procedure') {
-               categoriesMap.set(getCategoryLabel('Procedimiento'), true); // Default category for procedures
+           if (!resource?.category) {
+               if (resourceTypeKey === 'Procedure' && resource?.code?.text) {
+                   categoriesMap.set(getCategoryLabel('Procedimiento'), true);
+               } else if (resourceTypeKey === 'Encounter' && resource?.type) {
+                    resource.type.forEach((typeObj: any) => {
+                        if (typeObj.text) categoriesMap.set(getCategoryLabel(typeObj.text), true);
+                         if (typeObj.coding) {
+                             typeObj.coding.forEach((code: any) => {
+                                 if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
+                                 if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
+                             });
+                         }
+                    });
+               } else if ((resourceTypeKey === 'MedicationAdministration' || resourceTypeKey === 'MedicationAdministrationDuplicate') && resource?.medication) {
+                     categoriesMap.set(getCategoryLabel('Medication'), true);
+                }
+              // Add category mapping for AllergyIntolerance
+              if (resourceTypeKey === 'AllergyIntolerance' && resource?.code?.coding) {
+                  resource.code.coding.forEach((code: any) => {
+                       if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
+                       if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
+                  });
+              } else if (resourceTypeKey === 'AllergyIntolerance' && resource?.code?.text) {
+                   categoriesMap.set(getCategoryLabel(resource.code.text), true);
+              }
            }
-           if (!resource?.category && resource?.type && resource.resourceType === 'Encounter') {
-                resource.type.forEach((typeObj: any) => {
-                    if (typeObj.text) categoriesMap.set(getCategoryLabel(typeObj.text), true);
-                     if (typeObj.coding) {
-                         typeObj.coding.forEach((code: any) => {
-                             if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
-                             if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
-                         });
-                     }
-                });
-           }
-           if (!resource?.category && resource?.medication && resource.resourceType === 'MedicationAdministration') {
-                 categoriesMap.set(getCategoryLabel('Medication'), true); 
-            }
       };
 
-      if (data.Observation) extractCategories(data.Observation);
-      if (data.Condition) extractCategories(data.Condition);
-      if (data.Procedure) extractCategories(data.Procedure);
-      if (data.Encounter) extractCategories(data.Encounter);
-      if (data.MedicationAdministration) extractCategories(data.MedicationAdministration);
+      if (data.Observation) extractCategories(data.Observation, 'Observation');
+      if (data.Condition) extractCategories(data.Condition, 'Condition');
+      if (data.Procedure) extractCategories(data.Procedure, 'Procedure');
+      if (data.Encounter) extractCategories(data.Encounter, 'Encounter');
+      if (data.MedicationAdministration) extractCategories(data.MedicationAdministration, 'MedicationAdministration');
+      if (data.MedicationAdministrationDuplicate) extractCategories(data.MedicationAdministrationDuplicate, 'MedicationAdministrationDuplicate');
+      if (data.AllergyIntolerance) extractCategories(data.AllergyIntolerance, 'AllergyIntolerance'); // Process AllergyIntolerance for categories
 
     });
     const categories = Array.from(categoriesMap.keys()).sort();
     console.log('[getCategories] Calculated categories:', categories);
+     // Ensure 'Alergias' is added if any AllergyIntolerance records exist, even if no explicit category field
+     const allergyCategoryExists = medicalRecords?.results.some(record => record.document.structData.AllergyIntolerance);
+      if (allergyCategoryExists && !categories.includes('Alergias')) {
+          categories.push('Alergias');
+          categories.sort(); // Re-sort after adding
+          console.log('[getCategories] Added "Alergias" category.', categories);
+      }
+
     return categories;
   }, [medicalRecords]);
 
@@ -243,12 +271,28 @@ const PatientDetailView: React.FC = () => {
     console.log("Searching for:", searchQuery);
   };
 
-  const handleSelectResource = (resourceType: string) => {
-    setSelectedResourceType(resourceType);
+  const handleAddResourceClick = () => {
+    console.log('handleAddResourceClick: Setting showAddResourceMenu to true');
+    setShowAddResourceMenu(true);
+    setSelectedResourceType(null); // Ensure no form is selected when opening the menu
   };
 
+  const handleSelectResource = (resourceType: string) => {
+    console.log(`handleSelectResource: Resource type selected: ${resourceType}`);
+    setSelectedResourceType(resourceType);
+    setShowAddResourceMenu(false); // Close the menu after selection
+    console.log(`handleSelectResource: showAddResourceMenu set to false, selectedResourceType set to ${resourceType}`);
+  };
+
+  const handleCancelAddResource = () => {
+    console.log('handleCancelAddResource: Closing form and menu');
+    setSelectedResourceType(null);
+    setShowAddResourceMenu(false);
+  };
+
+  // Placeholder Save handlers for each form type
   const handleSaveObservation = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    if (!patientId || !auth.currentUser) { console.error('Error saving Observation: patientId or authenticated user is not defined.'); return; }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
     const newRef = push(dataRef);
@@ -263,11 +307,12 @@ const PatientDetailView: React.FC = () => {
       valueQuantity: { value: parseFloat(formData.value), unit: formData.unit },
       note: formData.noteText ? [{ text: formData.noteText }] : undefined
     };
-    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+    console.log('Saving Observation:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Observation saved successfully.'); handleCancelAddResource(); } catch (e) { console.error('Failed to save Observation:', e); }
   };
 
   const handleSaveCondition = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    if (!patientId || !auth.currentUser) { console.error('Error saving Condition: patientId or authenticated user is not defined.'); return; }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/conditions`);
     const newRef = push(dataRef);
@@ -282,11 +327,12 @@ const PatientDetailView: React.FC = () => {
         onsetDateTime: formData.onsetDateTime,
         note: formData.noteText ? [{ text: formData.noteText }] : undefined
     };
-    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+    console.log('Saving Condition:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Condition saved successfully.'); handleCancelAddResource(); } catch (e) { console.error('Failed to save Condition:', e); }
   };
 
   const handleSaveProcedure = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    if (!patientId || !auth.currentUser) { console.error('Error saving Procedure: patientId or authenticated user is not defined.'); return; }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/procedures`);
     const newRef = push(dataRef);
@@ -299,11 +345,12 @@ const PatientDetailView: React.FC = () => {
         performedDateTime: formData.performedDateTime,
         note: formData.noteText ? [{ text: formData.noteText }] : undefined
     };
-    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+     console.log('Saving Procedure:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Procedure saved successfully.'); handleCancelAddResource(); } catch (e) { console.error('Failed to save Procedure:', e); }
   };
 
   const handleSaveEncounter = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Error'); return; }
+    if (!patientId || !auth.currentUser) { console.error('Error saving Encounter: patientId or authenticated user is not defined.'); return; }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/encounters`);
     const newRef = push(dataRef);
@@ -317,7 +364,8 @@ const PatientDetailView: React.FC = () => {
         reason: formData.reason ? [{ text: formData.reason }] : undefined,
         note: formData.noteText ? [{ text: formData.noteText }] : undefined
     };
-    try { await set(newRef, dataToSave); handleCancelAddResource(); } catch (e) { console.error(e); }
+     console.log('Saving Encounter:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Encounter saved successfully.'); handleCancelAddResource(); } catch (e) { console.error('Failed to save Encounter:', e); }
   };
 
   // Handler to save a MedicationAdministration
@@ -352,10 +400,70 @@ const PatientDetailView: React.FC = () => {
       }
   };
 
-  const handleCancelAddResource = () => {
-    setSelectedResourceType(null);
-    setShowAddResourceMenu(false);
+   // Placeholder Save handler for the duplicated form
+   const handleSaveMedicationAdministrationDuplicate = async (formData: any) => {
+       if (!patientId || !auth.currentUser) {
+          console.error('Cannot save duplicated medication administration: patientId or authenticated user is not defined.');
+          return;
+      }
+      const doctorUid = auth.currentUser.uid;
+      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrationsDuplicate`);
+      const newRef = push(dataRef);
+        const dataToSave = {
+          id: newRef.key,
+          resourceType: "MedicationAdministrationDuplicate", // Use the new resource type
+          status: "completed", // Default status
+          medication: { text: formData.medicationName },
+          subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+          effectiveDateTime: formData.effectiveDateTime,
+          dosage: {
+              dose: { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit },
+              route: { text: formData.route }
+          },
+          note: formData.noteText ? [{ text: formData.noteText }] : undefined
+      };
+    console.log('Saving Duplicated Medication Administration data:', dataToSave);
+    try {
+        await set(newRef, dataToSave);
+        console.log('Duplicated Medication Administration saved successfully to Firebase.');
+        handleCancelAddResource(); // Close form after saving
+    } catch (error) {
+        console.error('Failed to save duplicated medication administration to Firebase:', error);
+    }
   };
+
+  // Handler to save AllergyIntolerance
+  const handleSaveAllergyIntolerance = async (formData: any) => {
+    if (!patientId || !auth.currentUser) {
+      console.error('Cannot save allergy/intolerance: patientId or authenticated user is not defined.');
+      return;
+    }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/allergyIntolerances`);
+    const newRef = push(dataRef);
+    const dataToSave = {
+      id: newRef.key,
+      resourceType: "AllergyIntolerance",
+      clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: formData.clinicalStatus }] },
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification", code: "confirmed" }] }, // Assuming confirmed for new entries
+      type: "allergy", // Assuming type is allergy based on the request
+      category: ["medication"], // Assuming medication or food based on typical allergies, might need a form field for this
+      code: { coding: [{ display: formData.substance }] },
+      patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+      recordedDate: new Date().toISOString(), // Record the date of entry
+      // Note: FHIR AllergyIntolerance can have a lot more fields like onset, reaction, etc.
+      // We are only including the requested fields for now.
+    };
+    console.log('Saving AllergyIntolerance:', dataToSave);
+    try {
+      await set(newRef, dataToSave);
+      console.log('Allergy/Intolerance saved successfully to Firebase.');
+      handleCancelAddResource(); // Close form after saving
+    } catch (error) {
+      console.error('Failed to save allergy/intolerance to Firebase:', error);
+    }
+  };
+
 
   if (isLoadingPatient) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando datos del paciente...</p></div>;
@@ -397,7 +505,7 @@ const PatientDetailView: React.FC = () => {
                 Volver a Expedientes
               </Link>
               <button
-                onClick={() => setShowAddResourceMenu(true)}
+                onClick={handleAddResourceClick}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-teal-700 bg-teal-100 hover:bg-teal-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
                 + Agregar Recurso
@@ -444,39 +552,53 @@ const PatientDetailView: React.FC = () => {
           />
         )}
 
-        {showAddResourceMenu && selectedResourceType === 'Observation' && (
+        {selectedResourceType === 'Observation' && (
           <AddObservationForm
             onSave={handleSaveObservation}
-            onCancel={() => setSelectedResourceType(null)}
+            onCancel={handleCancelAddResource}
           />
         )}
 
-        {showAddResourceMenu && selectedResourceType === 'Condition' && (
+        {selectedResourceType === 'Condition' && (
             <AddConditionForm
               onSave={handleSaveCondition}
-              onCancel={() => setSelectedResourceType(null)}
+              onCancel={handleCancelAddResource}
             />
         )}
 
-         {showAddResourceMenu && selectedResourceType === 'Procedure' && (
+         {selectedResourceType === 'Procedure' && (
             <AddProcedureForm
               onSave={handleSaveProcedure}
-              onCancel={() => setSelectedResourceType(null)}
+              onCancel={handleCancelAddResource}
             />
         )}
 
-        {showAddResourceMenu && selectedResourceType === 'Encounter' && (
+        {selectedResourceType === 'Encounter' && (
             <AddEncounterForm
               onSave={handleSaveEncounter}
-              onCancel={() => setSelectedResourceType(null)}
+              onCancel={handleCancelAddResource}
             />
         )}
 
-        {/* Render AddMedicationAdministrationForm when selectedResourceType is 'MedicationAdministration' */}
-        {showAddResourceMenu && selectedResourceType === 'MedicationAdministration' && (
+        {selectedResourceType === 'MedicationAdministration' && (
             <AddMedicationAdministrationForm
               onSave={handleSaveMedicationAdministration}
-              onCancel={() => setSelectedResourceType(null)}
+              onCancel={handleCancelAddResource}
+            />
+        )}
+
+        {selectedResourceType === 'MedicationAdministrationDuplicate' && (
+           <AddMedicationAdministrationDuplicateForm
+             onSave={handleSaveMedicationAdministrationDuplicate}
+             onCancel={handleCancelAddResource}
+           />
+        )}
+
+        {/* Conditional rendering for the AllergyIntolerance form */}
+        {selectedResourceType === 'AllergyIntolerance' && (
+            <AddAllergyIntoleranceForm
+              onSave={handleSaveAllergyIntolerance}
+              onCancel={handleCancelAddResource}
             />
         )}
 
