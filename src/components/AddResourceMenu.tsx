@@ -15,7 +15,7 @@ const AddResourceMenu: React.FC<AddResourceMenuProps> = ({ onSelectResource, onC
     { type: 'MedicationAdministration', label: 'Medicamento Administrado' },
     { type: 'MedicationAdministrationDuplicate', label: 'Medicamento Duplicado' },
     { type: 'AllergyIntolerance', label: 'Alergia/Intolerancia' },
-    { type: 'ClinicalImpression', label: 'Impresión Clínica' }, // Added ClinicalImpression button
+    { type: 'ClinicalImpression', label: 'Diagnóstico Médico' }, // Added ClinicalImpression button
     { type: 'Immunization', label: 'Inmunización' }, // Added Immunization button
     { type: 'MedicationRequest', label: 'Solicitud de medicamento' }, // Added Medication Request button
   ];

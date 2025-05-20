@@ -250,7 +250,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         }
 
         if (!matches && data.ClinicalImpression) {
-            if (getCategoryLabel('clinical-note') === currentCategoryLabel || getCategoryLabel('Impresión Clínica') === currentCategoryLabel) {
+            if (getCategoryLabel('clinical-note') === currentCategoryLabel || getCategoryLabel('Diagnóstico Médico') === currentCategoryLabel) {
                  matches = true;
              }
         }
@@ -854,7 +854,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
               <section key={uniqueKey} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <FilePenLine className="w-5 h-5 text-blue-600" />
-                  Impresión Clínica
+                  Diagnóstico Médico
                 </h2>
                 <div className="space-y-4">
                   {resourceData.date && ( // `date` es común, también puede ser `effectiveDateTime` o `effectivePeriod`

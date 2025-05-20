@@ -7,7 +7,7 @@ interface AddClinicalImpressionFormProps {
 
 // ¡Añade 'export' aquí!
 export interface ClinicalImpressionFormData {
-  noteText: any;
+  noteText: any; // Considera darle un tipo más específico si es posible, ej: string o string[]
   date: string;
   description: string;
   status: string; // completed / draft / entered-in-error
@@ -18,6 +18,7 @@ const AddClinicalImpressionForm: React.FC<AddClinicalImpressionFormProps> = ({ o
     date: '',
     description: '',
     status: '',
+    noteText: '', // Inicializa noteText si es parte del estado del formulario
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -36,7 +37,8 @@ const AddClinicalImpressionForm: React.FC<AddClinicalImpressionFormProps> = ({ o
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
-        <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nueva Impresión Clínica</h2>
+        {/* CAMBIO AQUÍ */}
+        <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nuevo Diagnóstico Médico</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="date" className="block text-sm font-medium text-gray-700">Fecha</label>
@@ -62,6 +64,20 @@ const AddClinicalImpressionForm: React.FC<AddClinicalImpressionFormProps> = ({ o
               required
             ></textarea>
           </div>
+          {/* Si noteText es un campo del formulario, deberías añadirlo aquí también */}
+          {/* Ejemplo para noteText si fuera un textarea:
+          <div>
+            <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">Nota Adicional</label>
+            <textarea
+              name="noteText"
+              id="noteText"
+              rows={2}
+              value={formData.noteText} // Asegúrate que formData.noteText es un string
+              onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            ></textarea>
+          </div>
+          */}
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-gray-700">Estado</label>
             <select
@@ -73,9 +89,9 @@ const AddClinicalImpressionForm: React.FC<AddClinicalImpressionFormProps> = ({ o
               required
             >
               <option value="">Seleccionar Estado</option>
-              <option value="completed">Completed</option>
-              <option value="draft">Draft</option>
-              <option value="entered-in-error">Entered in error</option>
+              <option value="completed">Completado</option>
+              <option value="draft">Borrador</option>
+              <option value="entered-in-error">Ingresado por error</option>
             </select>
           </div>
           <div className="mt-6 text-right flex justify-end">
@@ -90,7 +106,8 @@ const AddClinicalImpressionForm: React.FC<AddClinicalImpressionFormProps> = ({ o
               type="submit"
               className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
             >
-              Guardar Impresión Clínica
+              {/* CAMBIO AQUÍ */}
+              Guardar Diagnóstico Médico
             </button>
           </div>
         </form>
