@@ -21,6 +21,9 @@ import AddEncounterForm from './AddEncounterForm';
 import AddMedicationAdministrationForm from './AddMedicationAdministrationForm'; // Import AddMedicationAdministrationForm
 import AddMedicationAdministrationDuplicateForm from './AddMedicationAdministrationDuplicateForm'; // Import the new duplicated form
 import AddAllergyIntoleranceForm from './AddAllergyIntoleranceForm'; // Import the new AllergyIntolerance form
+import AddClinicalImpressionForm from './AddClinicalImpressionForm'; // Import the new ClinicalImpression form
+import type { ClinicalImpressionFormData } from './AddClinicalImpressionForm'; 
+
 
 const PatientDetailView: React.FC = () => {
   const { patientId } = useParams<{ patientId?: string }>();
@@ -59,6 +62,7 @@ const PatientDetailView: React.FC = () => {
       `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`,
       `doctors/${doctorUid}/patients/${patientId}/medicationAdministrationsDuplicate`,
       `doctors/${doctorUid}/patients/${patientId}/allergyIntolerances`, // Add path for AllergyIntolerance
+ `doctors/${doctorUid}/patients/${patientId}/clinicalImpressions`, // Add path for ClinicalImpression
     ];
 
     console.log(`[fetchMedicalRecordsFromFirebase] Setting up listeners for multiple paths`);
@@ -85,7 +89,8 @@ const PatientDetailView: React.FC = () => {
                            path.includes('encounters') ? 'Encounter' :
                            path.includes('medicationAdministrationsDuplicate') ? 'MedicationAdministrationDuplicate' :
                            path.includes('medicationAdministrations') ? 'MedicationAdministration' :
-                           path.includes('allergyIntolerances') ? 'AllergyIntolerance' : 'Unknown'; // Add AllergyIntolerance type mapping
+                           path.includes('allergyIntolerances') ? 'AllergyIntolerance' :
+                           path.includes('clinicalImpressions') ? 'ClinicalImpression' : 'Unknown'; // Add AllergyIntolerance and ClinicalImpression type mappings
 
       const dataRef = ref(database, path);
       const listener = onValue(dataRef, (snapshot) => {
@@ -247,7 +252,8 @@ const PatientDetailView: React.FC = () => {
       if (data.Encounter) extractCategories(data.Encounter, 'Encounter');
       if (data.MedicationAdministration) extractCategories(data.MedicationAdministration, 'MedicationAdministration');
       if (data.MedicationAdministrationDuplicate) extractCategories(data.MedicationAdministrationDuplicate, 'MedicationAdministrationDuplicate');
-      if (data.AllergyIntolerance) extractCategories(data.AllergyIntolerance, 'AllergyIntolerance'); // Process AllergyIntolerance for categories
+ if (data.AllergyIntolerance) extractCategories(data.AllergyIntolerance, 'AllergyIntolerance'); // Process AllergyIntolerance for categories
+ if (data.ClinicalImpression) categoriesMap.set(getCategoryLabel('Impresión Clínica'), true); // Add category for ClinicalImpression
 
     });
     const categories = Array.from(categoriesMap.keys()).sort();
@@ -464,6 +470,35 @@ const PatientDetailView: React.FC = () => {
     }
   };
 
+  const handleSaveClinicalImpression = async (formData: ClinicalImpressionFormData) => { // Use the correct type
+    if (!patientId || !auth.currentUser) {
+      console.error('Cannot save clinical impression: patientId or authenticated user is not defined.');
+      return;
+    }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/clinicalImpressions`);
+    const newRef = push(dataRef);
+
+    // --- CORRECTED MAPPING ---
+    const dataToSave = {
+      id: newRef.key,
+      resourceType: "ClinicalImpression",
+      // Use the properties exactly as they come from the form's formData state
+      date: formData.date, // Use formData.date
+      description: formData.description || "", // Use formData.description, use "" if it's empty (though it's required in the form)
+      status: formData.status, // Use formData.status
+      subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+    };
+    // --- END CORRECTED MAPPING ---
+
+    console.log('Saving ClinicalImpression:', dataToSave);
+    try {
+      await set(newRef, dataToSave);
+      console.log('Clinical Impression saved successfully to Firebase.');
+      handleCancelAddResource(); // Close form after saving
+    } catch (error) { console.error('Failed to save clinical impression to Firebase:', error); }
+  };
+
 
   if (isLoadingPatient) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando datos del paciente...</p></div>;
@@ -598,6 +633,14 @@ const PatientDetailView: React.FC = () => {
         {selectedResourceType === 'AllergyIntolerance' && (
             <AddAllergyIntoleranceForm
               onSave={handleSaveAllergyIntolerance}
+              onCancel={handleCancelAddResource}
+            />
+        )}
+
+        {/* Conditional rendering for the ClinicalImpression form */}
+        {selectedResourceType === 'ClinicalImpression' && (
+            <AddClinicalImpressionForm
+              onSave={handleSaveClinicalImpression}
               onCancel={handleCancelAddResource}
             />
         )}

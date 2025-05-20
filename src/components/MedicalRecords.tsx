@@ -1,5 +1,5 @@
 import React from 'react';
-import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet, HeartPulse, Stethoscope, CalendarClock, Scissors, Syringe, AlertTriangle } from 'lucide-react'; // Import AlertTriangle for AllergyIntolerance
+import { TestTube2, FileText, Pill, ClipboardList, FileSpreadsheet, HeartPulse, Stethoscope, CalendarClock, Scissors, Syringe, AlertTriangle, FilePenLine } from 'lucide-react'; // Import AlertTriangle for AllergyIntolerance and FilePenLine for ClinicalImpression
 import { ApiResponse } from '../types';
 import { getCategoryLabel } from '../api';
 
@@ -17,13 +17,13 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Fecha desconocida';
     try {
-        return new Date(dateString).toLocaleDateString('es-ES', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        // Check if the date string is just a date (YYYY-MM-DD) or includes time
+        const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+        if (dateString.includes('T') || dateString.includes(' ')) {
+             options.hour = '2-digit';
+             options.minute = '2-digit';
+        }
+        return new Date(dateString).toLocaleDateString('es-ES', options);
     } catch (error) {
         console.error('Error formatting date:', dateString, error);
         return 'Fecha inválida';
@@ -90,6 +90,15 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         }
     };
 
+     const getClinicalImpressionStatusDisplay = (status: string) => {
+        switch(status) {
+            case 'completed': return 'Completada';
+            case 'draft': return 'Borrador';
+            case 'entered-in-error': return 'Ingresada por error';
+            default: return status;
+        }
+    };
+
 
   const filterResultsByCategory = (results: ApiResponse['results']) => {
     if (!selectedCategory) return results;
@@ -147,6 +156,15 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
             }
         }
 
+        // Add filtering for ClinicalImpression
+        if (!matches && data.ClinicalImpression) {
+             // Assuming ClinicalImpression maps to the 'Notas Clínicas' category or a new one
+             // We'll use 'Notas Clínicas' for now, you might need to adjust based on your getCategoryLabel mapping
+            if (getCategoryLabel('clinical-note') === selectedCategory || getCategoryLabel('Impresión Clínica') === selectedCategory) { // Check for code and label
+                 matches = true;
+             }
+        }
+
       return matches;
     });
   };
@@ -178,13 +196,14 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
       else if (data.Condition) { resourceKey = 'Condition'; }
       else if (data.Encounter) { resourceKey = 'Encounter'; }
       else if (data.Procedure) { resourceKey = 'Procedure'; }
-      else if (data.MedicationAdministration) { resourceKey = 'MedicationAdministration'; } // Check for MedicationAdministration
-      else if (data.MedicationAdministrationDuplicate) { resourceKey = 'MedicationAdministrationDuplicate'; } // Check for duplicated MedicationAdministration
+      else if (data.MedicationAdministration) { resourceKey = 'MedicationAdministration'; }
+      else if (data.MedicationAdministrationDuplicate) { resourceKey = 'MedicationAdministrationDuplicate'; }
       else if (data.DiagnosticReport) { resourceKey = 'DiagnosticReport'; }
       else if (data.ServiceRequest) { resourceKey = 'ServiceRequest'; }
       else if (data.MedicationRequest) { resourceKey = 'MedicationRequest'; }
       else if (data.MedicationDispense) { resourceKey = 'MedicationDispense'; }
-      else if (data.AllergyIntolerance) { resourceKey = 'AllergyIntolerance'; } // Check for AllergyIntolerance
+      else if (data.AllergyIntolerance) { resourceKey = 'AllergyIntolerance'; }
+      else if (data.ClinicalImpression) { resourceKey = 'ClinicalImpression'; } // Check for ClinicalImpression
 
       if (!resourceKey) {
           console.warn('Skipping record with unknown resource type in structData:', data);
@@ -271,13 +290,12 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       <span>Realizado por: {resourceData.performer[0].display}</span>
                     )}
                   </div>
-                {/* Erroneous '}' was here from previous fix. Already removed. */}
+                </div>
                 {resourceData.note && resourceData.note.length > 0 && (
                   <div className="mt-3 p-3 bg-gray-50 rounded-md">
                     <p className="text-sm text-gray-600">{resourceData.note[0].text}</p>
                   </div>
                 )}
-                </div>
               </div>
             </section>
           );
@@ -493,6 +511,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       ? 'Completado'
                       : 'Pendiente'}
                   </span>
+                {/* Erroneous '}' removed from here */}
                 </div>
                 <div className="text-sm text-gray-500">
                   <div className="flex items-center gap-4">
@@ -540,6 +559,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       ? 'Completado'
                       : 'Pendiente'}
                   </span>
+                {/* Erroneous '}' was here (in previous prompt's code), already fixed. */}
                 </div>
                 {resourceData.dosageInstruction && resourceData.dosageInstruction[0] && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
@@ -557,7 +577,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       <span>Prescrito por: {resourceData.requester.display}</span>
                     )}
                   </div>
-                {/* Erroneous '}' removed from here */}
                 </div>
               </div>
             </section>
@@ -585,15 +604,6 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                       ? 'Entregado'
                       : 'Pendiente'}
                   </span>
-                {/* NOTE: Another rogue '}' was here in the original code provided in the prompt for this case.
-                    It has been implicitly removed in this corrected version.
-                    The original prompt had:
-                    ...
-                    </span>
-                  } <--- THIS BRACE
-                  {resourceData.quantity && (
-                  ...
-                 */}
                 </div>
                 {resourceData.quantity && (
                    <div className="mt-2">
@@ -636,6 +646,35 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
                    {resourceData.recordedDate && (
                        <div className="text-sm text-gray-500">
                            Fecha de registro: {formatDate(resourceData.recordedDate)}
+                       </div>
+                   )}
+                </div>
+              </section>
+            );
+            break;
+
+        case 'ClinicalImpression': // Add case for ClinicalImpression
+            renderedContent = (
+              <section key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FilePenLine className="w-5 h-5 text-blue-600" /> {/* Use FilePenLine icon */}
+                  Impresión Clínica
+                </h2>
+                <div className="space-y-4">
+                  {resourceData.date && (
+                       <div>
+                           <span className="font-medium text-gray-700">Fecha: {formatDate(resourceData.date)}</span>
+                       </div>
+                  )}
+                  {resourceData.description && (
+                      <div>
+                          <span className="font-medium text-gray-700">Descripción:</span>
+                          <p className="mt-1 text-gray-600">{resourceData.description}</p>
+                      </div>
+                  )}
+                   {resourceData.status && (
+                       <div className="text-sm text-gray-600">
+                           Estado: {getClinicalImpressionStatusDisplay(resourceData.status)}
                        </div>
                    )}
                 </div>
