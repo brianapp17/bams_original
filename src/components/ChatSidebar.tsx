@@ -106,18 +106,24 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 
   return (
-    // ROOT element: Must take full height and be a flex column container
-    <aside className="bg-white rounded-lg shadow-md h-full flex flex-col"> {/* Removed w-96, fixed, p-4, border-l, right-0 */}
-      {/* Header (Flex-shrink-0) */}
-      <div className="flex items-center gap-2 text-gray-800 p-4 pb-2 flex-shrink-0 border-b"> {/* Added p-4 pb-2, border-b, flex-shrink-0 */}
+    // Este <aside> es el contenedor principal del sidebar del chat.
+    // flex-1 min-h-0 le dice que ocupe toda la altura disponible que le dé su padre (el div en PatientDetailView) y maneje su propio overflow.
+    // flex flex-col le dice que organice sus hijos (encabezado, mensajes, input) verticalmente.
+    <aside className="bg-white w-80 h-full flex flex-col border-l">
+
+      {/* Este div es el encabezado. flex-shrink-0 evita que se encoja */}
+      <div className="flex items-center gap-2 text-gray-800 p-4 pb-2 flex-shrink-0 border-b">
         <TestTube2 className="w-5 h-5" />
-        <span className="font-medium">BAMS AI Chat</span> {/* Added AI Chat for clarity */}
+        <span className="font-medium">BAMS AI Chat</span>
       </div>
 
-      {/* Chat Messages (Flex-1, Scrollable) */}
+      {/* Este div es el área de mensajes. */}
+      {/* flex-1 le dice que ocupe todo el espacio vertical restante entre el encabezado y el input. */}
+      {/* overflow-y-auto le dice que, si los mensajes exceden su altura calculada por flex-1, aparezca una barra de scroll vertical. */}
+      {/* min-h-0 es crucial en flexbox con overflow-y-auto para permitir que se encoja hasta 0 si es necesario, en lugar de la altura intrínseca del contenido, lo que ayuda a flex-1 a funcionar correctamente. */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 p-4" // Added p-4
+        className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4"
       >
         {chatMessages.map((message, index) => (
           <div
@@ -125,15 +131,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[90%] rounded-lg p-3 text-sm ${ // Reduced padding slightly
+              className={`max-w-[90%] rounded-lg p-3 text-sm ${
                 message.role === 'user'
                   ? 'text-white'
                   : 'bg-gray-100 text-gray-800'
               }`}
               style={message.role === 'user' ? { backgroundColor: '#29a3ac' } : {}}
             >
-              {/* Using ReactMarkdown for both roles for consistency and potential future markdown from user */}
-               <div className="prose prose-sm max-w-none"> {/* prose for markdown styles */}
+              {/* Usamos ReactMarkdown aquí */}
+               <div className="prose prose-sm max-w-none">
                 <ReactMarkdown children={message.content} remarkPlugins={[remarkGfm]} />
                </div>
             </div>
@@ -148,8 +154,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         )}
       </div>
 
-      {/* Chat Input (Flex-shrink-0) */}
-      <form onSubmit={handleChatSubmit} className="flex gap-2 p-4 border-t flex-shrink-0"> {/* Added p-4, border-t, flex-shrink-0 */}
+      {/* Este form es el área de input. flex-shrink-0 evita que se encoja */}
+      <form onSubmit={handleChatSubmit} className="flex gap-2 p-4 border-t flex-shrink-0">
         <input
           type="text"
           value={currentMessage}
