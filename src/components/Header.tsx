@@ -1,159 +1,161 @@
-import React, { useState, useEffect } from 'react';
-import { TestTube2} from 'lucide-react';
+// Header.tsx
+import React, { useState, useEffect, useRef } from 'react'; // Añadido useRef
+import { TestTube2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import { fetchMarkdown} from '../api';
+import { fetchMarkdown } from '../api'; // Ajusta la ruta si es necesario
 
 interface HeaderProps {
   resetSearch: () => void;
   patientId: string | null;
+  resultsData: string | null; // fhirDataString es string | null
 }
 
-const Header: React.FC<HeaderProps> = ({ resetSearch, patientId }): JSX.Element => {
-  console.log("Header component rendering, patientId:", patientId);
+const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }): JSX.Element => {
   const [isDownloading, setIsDownloading] = useState(false);
-  // Eliminamos loadingMessageIndex
-  // const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [buttonText, setButtonText] = useState("Reporte AI");
+  const intervalIdRef = useRef<NodeJS.Timeout | undefined>(undefined); // Para manejar el intervalo
 
   const loadingMessages = [
-    "Reporte AI",
-    "Analizando historial",
-    "Leyendo expediente",
-    "Resumiendo datos médicos",
-    "IA en acción",
-    "Generando informe",
-    "Detectando diagnósticos clave",
-    "Resumiendo inteligentemente",
-    "Procesando paciente",
-    "Ordenando información clínica",
-    "Informe inteligente en camino",
+    "Reporte AI", // Estado inicial o después de éxito/error
+    "Analizando historial...",
+    "Leyendo expediente...",
+    "Resumiendo datos médicos...",
+    "IA en acción...",
+    "Generando informe...",
+    "Detectando diagnósticos...",
+    "Resumiendo inteligentemente...",
+    "Procesando paciente...",
+    "Ordenando información...",
+    "Informe en camino...",
   ];
 
-  // El primer useEffect para establecer el texto inicial es redundante
-  // porque buttonText ya se inicializa con ese valor. Lo eliminamos.
-  // useEffect(() => {
-  //   setButtonText("Generar PDF AI");
-  // }, []);
-
   const handleDownload = async () => {
-    console.log("handleDownload function called");
     if (!patientId) {
-        alert("Por favor, selecciona un paciente antes de descargar.");
+      alert("Por favor, selecciona un paciente antes de descargar.");
       return;
     }
-    setIsDownloading(true); // Inicia el modo descarga/carga
+    if (!resultsData) {
+      alert("No hay datos del paciente (registros médicos) para generar el reporte.");
+      return;
+    }
+
+    setIsDownloading(true);
+    let currentLoadingIndex = 1; // Empezar con el primer mensaje de carga
+    setButtonText(loadingMessages[currentLoadingIndex]);
+
+    // Limpiar intervalo anterior si existe
+    if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+    
+    intervalIdRef.current = setInterval(() => {
+      currentLoadingIndex = (currentLoadingIndex + 1) % (loadingMessages.length -1) ; // Ciclar solo mensajes de carga
+      if (currentLoadingIndex === 0) currentLoadingIndex = 1; // Saltar el mensaje inicial "Reporte AI"
+      setButtonText(loadingMessages[currentLoadingIndex]);
+    }, 2000);
+
     try {
-      const markdownResponse: string = await fetchMarkdown(patientId);
-      if (!markdownResponse) {
-        throw new Error("Failed to fetch markdown");
-      }
-      const generatePdf = (markdown: string) => {
-        const splitTextIntoLines = (text: string, pdf: jsPDF, maxLineWidth: number): string[] => {
-          const words = text.split(' ');
-          const lines: string[] = [];
-          let currentLine = '';
-          for (const word of words) {
-            const testLine = currentLine + word + ' ';
-            const { w } = pdf.getTextDimensions(testLine);
-            if (w > maxLineWidth) {
-              lines.push(currentLine.trim());
-              currentLine = word + ' ';
-            } else {
-              currentLine = testLine;
-            }
-          }
-          lines.push(currentLine.trim());
-          return lines;
-        };
-        const pdf = new jsPDF();
-        const maxLineWidth = 190;
+      console.log("Calling fetchMarkdown with patientId:", patientId);
+      const markdownResponse: string = await fetchMarkdown(patientId, resultsData);
+      console.log("Received markdownResponse from API:", markdownResponse);
+
+      // Limpiar intervalo al recibir respuesta
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+
+      const generatePdf = (markdownString: string) => {
+        const pdf = new jsPDF({
+          orientation: 'p', // portrait
+          unit: 'mm', // milímetros
+          format: 'a4' // tamaño A4
+        });
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const margin = 15; // Margen de 15mm en todos los lados
+        const maxLineWidth = pageWidth - (margin * 2);
+        let y = margin; // Posición Y inicial
+        const lineHeight = 7; // Altura de línea (ajustar según tamaño de fuente)
+        const fontSize = 11;
+
+        pdf.setFontSize(fontSize);
+
         try {
-          const parsedMarkdown = JSON.parse(markdown);
-          const reportText = parsedMarkdown.response;
-          const lines = reportText.split('\n').flatMap((line: string) => splitTextIntoLines(line, pdf, maxLineWidth));
-          let y = 20;
-          lines.forEach((line: string) => {
-            if (y > 280) {
-              pdf.addPage();
-              y = 20;
-            }
-            pdf.text(line, 10, y);
-            y += 10;
-          });
-        } catch (error) {
-          console.error('Error parsing markdown:', error);
+          // Se espera que markdownString sea una cadena JSON que contiene una propiedad "response".
+          const parsedContent = JSON.parse(markdownString);
+          const reportText = parsedContent.response;
+
+          if (typeof reportText !== 'string') {
+            console.error('La propiedad "response" en el markdown parseado no es una cadena de texto:', reportText);
+            throw new Error('Formato de respuesta inesperado del servicio de reportes.');
           }
 
-        pdf.save(`medical-report-${patientId}.pdf`);
-      }
+          // Dividir el texto en líneas, manejando saltos de línea y ajuste de texto
+          const lines = reportText.split('\n').reduce((acc: string[], paragraph: string) => {
+            // Usar splitTextToSize para el ajuste automático de línea según el ancho
+            const paragraphLines = pdf.splitTextToSize(paragraph, maxLineWidth);
+            return acc.concat(paragraphLines);
+          }, []);
+
+
+          lines.forEach((line: string) => {
+            if (y + lineHeight > pageHeight - margin) { // Si la línea excede la página
+              pdf.addPage();
+              y = margin; // Resetear Y a la posición inicial en la nueva página
+            }
+            pdf.text(line, margin, y);
+            y += lineHeight;
+          });
+
+        } catch (error) {
+          console.error('Error parsing markdown or generating PDF content:', error);
+          alert(`Hubo un error al procesar el contenido del reporte: ${error instanceof Error ? error.message : String(error)}`);
+          setButtonText("Error Procesando");
+          setTimeout(() => setButtonText(loadingMessages[0]), 3000);
+          return; // No intentar guardar
+        }
+        pdf.save(`reporte-medico-${patientId}.pdf`);
+      };
+
       generatePdf(markdownResponse);
+      setButtonText("Reporte Descargado");
+      setTimeout(() => setButtonText(loadingMessages[0]), 3000);
+
     } catch (error) {
-      console.error('Error downloading markdown:', error);
-      // Opcional: manejar el texto del botón en caso de error
-      setButtonText("Error al generar PDF");
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      console.error('Error during report generation process:', error);
+      alert(`Error al generar el reporte: ${error instanceof Error ? error.message : String(error)}`);
+      setButtonText("Error al Generar");
+      setTimeout(() => setButtonText(loadingMessages[0]), 3000);
     } finally {
-        setIsDownloading(false); // Finaliza el modo descarga/carga
-        setButtonText(loadingMessages[0]); // Siempre restablece al texto inicial
+      setIsDownloading(false);
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current); // Asegurar limpieza final
     }
   };
 
-  // Este useEffect ahora maneja solo el cambio de texto del botón
-  // cuando isDownloading es true.
+  // Efecto para limpiar el intervalo si el componente se desmonta mientras se descarga
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | undefined;
-
-    if (isDownloading) {
-      intervalId = setInterval(() => {
-        // Encuentra el índice actual del texto mostrado
-        const currentIndex = loadingMessages.indexOf(buttonText);
-        // Calcula el próximo índice (cicla si llega al final)
-        const nextIndex = (currentIndex + 1) % loadingMessages.length;
-        // Actualiza directamente el texto del botón
-        setButtonText(loadingMessages[nextIndex]);
-      }, 1500);
-    }
-
-    // Función de limpieza: limpia el intervalo cuando isDownloading cambia a false
-    // o cuando el componente se desmonta.
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
       }
-       // No restablecemos buttonText aquí, ya que handleDownload.finally lo hace.
     };
-  }, [isDownloading, loadingMessages, buttonText]); // Añadimos buttonText a las dependencias porque lo leemos.
+  }, []);
+
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-2 text-blue-600 cursor-pointer" onClick={resetSearch}>
-        <TestTube2 className="w-6 h-6" /> <span className="text-lg font-medium">Búsqueda Artificial Médica Salud</span>
+        <TestTube2 className="w-6 h-6" />
+        <span className="text-lg font-medium">Búsqueda Artificial Médica Salud</span>
       </div>
       {patientId && (
-
-<button
-className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 
-  ${isDownloading ? 'cursor-wait opacity-50' : ''}`}
-onClick={handleDownload}
-disabled={isDownloading}
-style={{
-  backgroundColor: isDownloading ? '#29a3ac' : '#29a3ac'
-}}
-onMouseEnter={(e) => {
-  if (!isDownloading) {
-    e.currentTarget.style.backgroundColor = '#238f96';
-  }
-}}
-onMouseLeave={(e) => {
-  if (!isDownloading) {
-    e.currentTarget.style.backgroundColor = '#29a3ac';
-  }
-}}
->
-{buttonText}
-</button>
-
-
-
+        <button
+          className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors duration-150 ${
+            isDownloading ? 'cursor-wait opacity-75' : 'hover:bg-teal-700'
+          }`}
+          onClick={handleDownload}
+          disabled={isDownloading}
+          style={{ backgroundColor: '#29a3ac' }}
+        >
+          {buttonText}
+        </button>
       )}
     </header>
   );

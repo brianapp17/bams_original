@@ -13,7 +13,7 @@ import { getCategoryLabel } from '../api';
 // Components
 import PatientSidebar from './PatientSidebar';
 import ChatSidebar from './ChatSidebar';
-import Header from './Header';
+import Header from './Header'; // Asegúrate que la ruta de importación sea correcta
 import SearchBar from './SearchBar';
 import MedicalRecords from './MedicalRecords';
 import AddResourceMenu from './AddResourceMenu'; // Import the AddResourceMenu
@@ -704,15 +704,16 @@ const PatientDetailView: React.FC = () => {
 
   if (patient && patientId && !isLoadingPatient && !patientError) {
     return (
-      <div className="h-screen bg-gray-50 flex flex-col"> {/* MODIFICADO: min-h-screen a h-screen */}
-        <Header resetSearch={() => { }} patientId={patientId || null} />
+      <div className="h-screen bg-gray-50 flex flex-col">
+        {/* AQUÍ SE PASA LA PROP resultsData */}
+        <Header 
+          resetSearch={() => { /* Define tu lógica de resetSearch aquí si es necesaria */ }} 
+          patientId={patientId || null} 
+          resultsData={fhirDataString} 
+        />
 
-        {/* Contenedor de las tres columnas principales: PatientSidebar, Main Content Area, ChatSidebar */}
-        {/* MODIFICADO: flex-1 (para tomar altura restante), items-stretch (para que hijos llenen altura), overflow-hidden (para no crecer más) */}
         <div className="flex flex-1 p-4 gap-4 items-stretch overflow-hidden">
           
-          {/* Patient Sidebar */}
-          {/* MODIFICADO: Quitado h-full, items-stretch del padre se encarga. Añadido flex flex-col si necesita scroll interno */}
           <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col"> 
             <PatientSidebar
               patientInfo={patientInfo}
@@ -720,16 +721,12 @@ const PatientDetailView: React.FC = () => {
               selectedCategory={selectedCategory ? getCategoryLabel(selectedCategory) : null}
               setSelectedCategory={setSelectedCategory}
               fhirData={fhirDataString}
-              // Si PatientSidebar necesita ser scrollable, su contenido principal debe ser flex-1 overflow-y-auto
             />
           </div>
 
-          {/* Main Content Area (Columna central) */}
-          {/* MODIFICADO: flex-1 (para tomar ancho), flex flex-col (para organizar hijos verticalmente), min-w-0 (para problemas de overflow de contenido) */}
           <div className="flex-1 flex flex-col min-w-0"> 
             
-            {/* Botones de acción - flex-shrink-0 para que no se encojan */}
-            <div className="mb-4 flex space-x-4 flex-shrink-0 p-2"> {/* Padding añadido aquí */}
+            <div className="mb-4 flex space-x-4 flex-shrink-0 p-2">
               <Link to="/expedientes" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
                 <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -744,10 +741,9 @@ const PatientDetailView: React.FC = () => {
               </button>
             </div>
 
-            {/* Card principal: flex-col, flex-1 para tomar espacio vertical, min-h-0 para scroll interno */}
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full"> {/* MODIFICADO: padding, quitado mb-6 */}
+            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
               
-              <div className="flex-shrink-0"> {/* SearchBar no debe encogerse */}
+              <div className="flex-shrink-0">
                 <SearchBar
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
@@ -755,12 +751,11 @@ const PatientDetailView: React.FC = () => {
                 />
               </div>
               
-              <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0"> {/* Título no debe encogerse */}
+              <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
                 Registros Médicos
               </h2>
 
-              {/* Contenedor para MedicalRecords y mensajes: ESTE es el que hace scroll */}
-              <div className="flex-1 overflow-y-auto min-h-0"> {/* Mantiene su estructura correcta */}
+              <div className="flex-1 overflow-y-auto min-h-0">
                 {isLoadingRecords ? (
                   <div className="text-center text-gray-600">Cargando registros médicos...</div>
                 ) : recordsError ? (
@@ -776,8 +771,6 @@ const PatientDetailView: React.FC = () => {
             </div>
           </div>
 
-          {/* ChatSidebar */}
-          {/* MODIFICADO: items-stretch del padre se encarga de la altura. flex flex-col para scroll interno si es necesario */}
           <div className="w-96 border-l border-gray-200 flex flex-col"> 
             <ChatSidebar
               chatMessages={chatMessages}
@@ -786,7 +779,6 @@ const PatientDetailView: React.FC = () => {
               setIsChatLoading={setIsChatLoading}
               resultsData={fhirDataString}
               selectedPatientId={patientId || null}
-              // Si ChatSidebar necesita ser scrollable, su contenido principal debe ser flex-1 overflow-y-auto
             />
           </div>
         </div>
