@@ -1,9 +1,11 @@
-// api.ts
+
 
 const PATIENT_SERVICES_URL = 'https://patientservices-127465468754.us-central1.run.app';
 const ALL_PATIENTS_URL = 'https://allpatientsid-127465468754.us-central1.run.app';
 const CHATBOT_API_URL = 'https://bamsgenerador-127465468754.us-central1.run.app';
 const PDFBAMS_API_URL = 'https://pdfbams-127465468754.us-central1.run.app';
+const BAMSNOTES_API_URL = 'https://bamsnotes-127465468754.us-central1.run.app';
+
 
 export async function fetchAllPatients() {
   try {
@@ -172,3 +174,57 @@ export function getCategoryLabel(category: string): string {
 
   return categoryMap[category.toLowerCase()] || category;
 }
+
+/**
+ * Sends an audio file to the BAMSNotes API to generate a consultation note.
+ * @param audioBlob The audio blob to send.
+ * @param patientId The ID of the patient (opcional, si tu API lo necesita en el form-data, aunque no lo especificaste).
+ * @returns A promise that resolves to the JSON response from the API (esperado: { response: string }).
+ */
+export async function generateNoteFromAudio(audioBlob: Blob, patientId?: string): Promise<{ response: string }> {
+  if (!audioBlob) {
+    throw new Error("Audio blob is required to generate notes.");
+  }
+
+  const formData = new FormData();
+  const fileExtension = audioBlob.type.split('/')[1]?.split(';')[0] || 'webm';
+  formData.append('audio_file', audioBlob, `grabacion_${Date.now()}.${fileExtension}`);
+  
+  // Si tu API 'bamsnotes' necesitara el patientId en el FormData, lo añadirías aquí:
+  // if (patientId) {
+  //   formData.append('patientId', patientId);
+  // }
+
+  console.log("Sending audio to BAMSNotes API:", BAMSNOTES_API_URL);
+
+  try {
+    const response = await fetch(BAMSNOTES_API_URL, {
+      method: 'POST',
+      body: formData, // FormData se encarga de los headers correctos para multipart/form-data
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Error response from ${BAMSNOTES_API_URL}:`, response.status, errorBody);
+      throw new Error(`Note generation service failed with status ${response.status}: ${errorBody || 'No error details provided'}`);
+    }
+
+    const responseJson = await response.json();
+    console.log(`Raw JSON response from ${BAMSNOTES_API_URL}:`, responseJson);
+
+    if (typeof responseJson.response !== 'string') {
+      console.error("BAMSNotes API response is missing 'response' property or it's not a string:", responseJson);
+      throw new Error("Invalid content from note generation: 'response' text field is missing or not in the expected format.");
+    }
+
+    return responseJson as { response: string };
+
+  } catch (error) {
+    console.error("Error during note generation from audio:", error);
+    if (error instanceof Error) {
+      throw new Error(error.message.includes("Note generation service") ? error.message : `Failed to generate note from audio: ${error.message}`);
+    }
+    throw new Error("Failed to generate note from audio: An unknown error occurred.");
+  }
+}
+

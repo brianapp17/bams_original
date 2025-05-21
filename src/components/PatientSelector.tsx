@@ -28,7 +28,7 @@ const PatientSelector: React.FC<PatientSelectorProps> = ({
         >
           <option value="">Seleccionar Paciente</option>
           {patients.map((patient) => (
-            <option key={patient.Id} value={patient.Id}>
+            <option key={patient.id} value={patient.id}>
               {patient.Name}
             </option>
           ))}

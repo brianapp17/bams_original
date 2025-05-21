@@ -1,10 +1,10 @@
 // PatientSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { PatientInfo, NotasConsultaType, NotaConsultaItem } from '../types'; // Asegúrate de definir estos tipos
-import { User, Mic } from 'lucide-react';
-import { FileUp, Scan } from 'lucide-react';
+import { PatientInfo, NotaConsultaItem } from '../types'; // NotaConsultaItem se usa en la prop onSaveNewNote
+import { User, Mic, FileUp, Scan, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { generateNoteFromAudio } from '../api'; // Asumiendo que has movido la función a api.ts
 
 // Interfaz para las notas formateadas para el dropdown
 interface FormattedNote {
@@ -14,11 +14,12 @@ interface FormattedNote {
 }
 
 interface PatientSidebarProps {
-  patientInfo: PatientInfo | null; // PatientInfo DEBE incluir NotasConsulta
+  patientInfo: PatientInfo | null;
   categories: string[];
   selectedCategory: string | null;
   setSelectedCategory: (category: string | null) => void;
   fhirData: string | null;
+  onSaveNewNote: (noteContent: NotaConsultaItem) => Promise<boolean>; // Nueva prop
 }
 
 const PatientSidebar: React.FC<PatientSidebarProps> = ({
@@ -26,7 +27,8 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   categories,
   selectedCategory,
   setSelectedCategory,
-  fhirData
+  fhirData,
+  onSaveNewNote // Recibimos la prop
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -36,11 +38,9 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   const audioChunks = useRef<Blob[]>([]);
   const audioStream = useRef<MediaStream | null>(null);
 
-  // Estado para las notas formateadas obtenidas del paciente
   const [savedNotes, setSavedNotes] = useState<FormattedNote[]>([]);
   const [selectedSavedNoteId, setSelectedSavedNoteId] = useState<string>('');
   const [selectedNoteContent, setSelectedNoteContent] = useState<string | null>(null);
-
 
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
@@ -50,51 +50,70 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisResultsRef = useRef<HTMLDivElement>(null);
 
-  // Efecto para procesar NotasConsulta cuando patientInfo cambie
+  // Nuevos estados para la generación de notas AI
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [noteGenerationStatus, setNoteGenerationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
   useEffect(() => {
     if (patientInfo && patientInfo.NotasConsulta) {
       const notasDelPaciente = patientInfo.NotasConsulta;
       const formatted: FormattedNote[] = Object.entries(notasDelPaciente)
         .map(([dateKey, noteData]) => {
-          // Intentar formatear la fecha de forma legible
           let displayDate = dateKey;
           try {
             displayDate = new Date(dateKey).toLocaleDateString('es-ES', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric',
-              // hour: '2-digit', // Descomentar si quieres la hora
-              // minute: '2-digit'
             });
           } catch (e) {
             console.warn("No se pudo parsear la fecha de la nota:", dateKey);
           }
           return {
-            id: dateKey, // Usar la clave original (fecha/timestamp) como ID
+            id: dateKey,
             title: `Nota - ${displayDate}`,
             content: noteData.response,
           };
         })
-        .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime()); // Ordenar por fecha descendente (más nuevas primero)
+        .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime()); 
       
       setSavedNotes(formatted);
-      setSelectedSavedNoteId(''); // Resetear selección
-      setSelectedNoteContent(null); // Resetear contenido
+      // No resetear si ya hay una nota seleccionada, para una mejor UX al añadir nuevas notas.
+      // Si no hay nota seleccionada O la nota seleccionada ya no existe, entonces resetear.
+      if (!selectedSavedNoteId || !formatted.find(note => note.id === selectedSavedNoteId)) {
+        setSelectedSavedNoteId('');
+        setSelectedNoteContent(null);
+      }
     } else {
-      setSavedNotes([]); // Si no hay paciente o notas, vaciar
+      setSavedNotes([]);
       setSelectedSavedNoteId('');
       setSelectedNoteContent(null);
     }
-  }, [patientInfo]);
-
+  }, [patientInfo, selectedSavedNoteId]); // Añadir selectedSavedNoteId a las dependencias
 
   const startRecording = async () => {
-    // ... (tu código de startRecording sin cambios)
     setRecordingError(null);
+    setNoteGenerationStatus('idle'); // Resetear estado de notas
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStream.current = stream;
-      const options = { mimeType: 'audio/webm; codecs=opus' };
+      // Intentar con codecs más comunes si opus no está disponible universalmente en todos los navegadores/SO
+      const mimeTypes = [
+        'audio/webm; codecs=opus',
+        'audio/ogg; codecs=opus',
+        'audio/webm',
+        'audio/ogg',
+        'audio/wav', // Considerar si el tamaño es un problema
+        'audio/mp4', // A veces es audio/aac dentro de mp4
+      ];
+      const supportedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
+      
+      if (!supportedMimeType) {
+        throw new Error("Ningún formato de audio soportado por MediaRecorder fue encontrado.");
+      }
+      console.log("Usando MIME type para grabación:", supportedMimeType);
+
+      const options = { mimeType: supportedMimeType };
       mediaRecorder.current = new MediaRecorder(stream, options);
       audioChunks.current = [];
       setAudioBlob(null);
@@ -106,14 +125,24 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
       };
 
       mediaRecorder.current.onstop = () => {
-        const audioBlob = new Blob(audioChunks.current, { type: mediaRecorder.current?.mimeType || 'audio/webm' });
-        setAudioBlob(audioBlob);
+        if (audioChunks.current.length === 0) {
+            console.warn("Grabación detenida pero no se generaron datos de audio.");
+            setRecordingError("No se generaron datos de audio durante la grabación.");
+            setIsRecording(false);
+            if (audioStream.current) {
+                audioStream.current.getTracks().forEach(track => track.stop());
+                audioStream.current = null;
+            }
+            return;
+        }
+        const recordedAudioBlob = new Blob(audioChunks.current, { type: mediaRecorder.current?.mimeType || supportedMimeType });
+        setAudioBlob(recordedAudioBlob);
         if (audioStream.current) {
            audioStream.current.getTracks().forEach(track => track.stop());
            audioStream.current = null;
         }
         setIsRecording(false);
-        console.log("Grabación detenida y blob creado:", audioBlob);
+        console.log("Grabación detenida y blob creado:", recordedAudioBlob);
       };
 
       mediaRecorder.current.onerror = (event: Event) => {
@@ -147,16 +176,14 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const stopRecording = () => {
-    // ... (tu código de stopRecording sin cambios)
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       console.log("Deteniendo grabación...");
-      mediaRecorder.current.stop();
-      setRecordingError(null);
+      mediaRecorder.current.stop(); // onstop se encargará del resto
+      // setRecordingError(null); // No es necesario aquí, onstop lo maneja si no hay error
     }
   };
 
   const handleMicButtonClick = () => {
-    // ... (tu código de handleMicButtonClick sin cambios)
     if (isRecording) {
       stopRecording();
     } else {
@@ -166,23 +193,61 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     }
   };
 
-   const handleGenerateNotes = () => {
-    // ... (tu código de handleGenerateNotes sin cambios)
+  const handleGenerateNotes = async () => {
       if (!audioBlob) {
           console.warn("No hay audio grabado para generar notas.");
           setRecordingError("Por favor, graba audio antes de generar notas.");
+          setNoteGenerationStatus('error');
+          setTimeout(() => setNoteGenerationStatus('idle'), 3000);
           return;
       }
-      console.log("Generando notas AI con el audio:", audioBlob);
-      setRecordingError(null);
-      const formData = new FormData();
-      const fileExtension = audioBlob.type.split('/')[1]?.split(';')[0] || 'webm';
-      formData.append('audio', audioBlob, `grabacion_${Date.now()}.${fileExtension}`);
-      formData.append('patientId', patientInfo?.id || '');
-      console.log("Simulando envío a la API para generar notas...");
-      // Aquí iría la lógica real para enviar el audio a tu API
-      // Y al recibir la respuesta, la guardarías en Firebase bajo patientInfo.id / NotasConsulta / [timestamp]
-      // Luego, el useEffect de arriba actualizaría la lista 'savedNotes'
+      if (!patientInfo?.id) {
+          console.warn("ID de paciente no disponible.");
+          setRecordingError("No se puede generar nota sin ID de paciente.");
+          setNoteGenerationStatus('error');
+          setTimeout(() => setNoteGenerationStatus('idle'), 3000);
+          return;
+      }
+
+      console.log("Iniciando generación de notas AI con el audio:", audioBlob);
+      setRecordingError(null); // Limpiar errores previos de grabación
+      setIsGeneratingNote(true);
+      setNoteGenerationStatus('idle'); // Podría ser 'loading' si tienes un estado para eso
+
+      try {
+        // Usar patientInfo.id si es necesario para la API generateNoteFromAudio
+        const noteData = await generateNoteFromAudio(audioBlob, patientInfo.id); 
+        
+        if (noteData && typeof noteData.response === 'string') {
+          const newNote: NotaConsultaItem = { response: noteData.response };
+          const successfullySaved = await onSaveNewNote(newNote); 
+          
+          if (successfullySaved) {
+            console.log("Nota generada y guardada exitosamente.");
+            setNoteGenerationStatus('success');
+            setAudioBlob(null); // Limpiar el audio blob después de éxito
+          } else {
+            console.error("La nota fue generada pero falló al guardarse en Firebase.");
+            setRecordingError("Error al guardar la nota generada en la base de datos.");
+            setNoteGenerationStatus('error');
+          }
+        } else {
+          throw new Error("Formato de respuesta inesperado del servicio de generación de notas.");
+        }
+
+      } catch (error) {
+        console.error("Error generando o guardando la nota:", error);
+        setRecordingError(error instanceof Error ? error.message : "Error desconocido al generar la nota.");
+        setNoteGenerationStatus('error');
+      } finally {
+        setIsGeneratingNote(false);
+        setTimeout(() => {
+          // Solo resetear si no fue un éxito, para que el mensaje de éxito dure un poco
+          if (noteGenerationStatus !== 'success') {
+            setNoteGenerationStatus('idle');
+          }
+        }, 4000); // Mantener el mensaje de error/éxito por 4 segundos
+      }
    };
 
   const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -191,7 +256,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleSavedNoteChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const noteId = event.target.value; // Este ID es la fecha/timestamp original
+    const noteId = event.target.value; 
     setSelectedSavedNoteId(noteId);
     if (noteId) {
         const note = savedNotes.find(n => n.id === noteId);
@@ -203,7 +268,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleUploadButtonClick = () => {
-    // ... (tu código sin cambios)
     setUploadedImages([]);
     setAnalysisResults(null);
     setAnalysisError(null);
@@ -211,7 +275,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // ... (tu código sin cambios)
     const files = event.target.files;
     if (files && files.length > 0) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
@@ -223,7 +286,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           setAnalysisError("Tipo de archivo no permitido. Por favor, sube una imagen (JPEG, PNG, GIF, BMP, WEBP).");
       }
       console.log("Archivos seleccionados:", validFiles);
-      event.target.value = '';
+      if (event.target) event.target.value = ''; // Limpiar el input
     } else {
         setUploadedImages([]);
         setAnalysisError(null);
@@ -232,7 +295,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleAnalyzeExams = async () => {
-    // ... (tu código sin cambios)
     if (uploadedImages.length === 0) {
         setAnalysisError("Por favor, sube al menos una imagen para analizar.");
         return;
@@ -254,8 +316,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     formData.append('prompt', analysisPrompt);
     formData.append('image_file', uploadedImages[0]);
 
-    console.log("Enviando datos para análisis de imagen a:", apiUrl);
-
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -268,15 +328,11 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
         }
 
         const resultText = await response.text();
-        console.log("Respuesta cruda de la API:", resultText);
-
         try {
             const outerResult = JSON.parse(resultText);
             if (outerResult && typeof outerResult.response === 'string') {
                 let contentFromApi = outerResult.response;
-                console.log("Contenido dentro de 'response' (crudo):", contentFromApi);
                 contentFromApi = contentFromApi.replace(/^```(?:\w*\n)?/, '').replace(/```$/, '');
-                console.log("Contenido después de quitar delimitadores ```:", contentFromApi);
                 setAnalysisResults(contentFromApi);
             } else {
                 throw new Error("Estructura de respuesta de la API inesperada o 'response' no es un string.");
@@ -284,13 +340,11 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
         } catch (jsonError: any) {
             console.error('Error al procesar la respuesta de la API (parseo exterior o estructura):', jsonError);
             if (resultText && !resultText.trim().startsWith('{') && !resultText.trim().startsWith('[')) {
-                 console.log("La respuesta no es JSON, pero podría ser texto/Markdown. Mostrando directamente:", resultText);
                  setAnalysisResults(resultText);
             } else {
                  setAnalysisError(`Error al procesar la respuesta del análisis: ${jsonError.message}. Intenta de nuevo.`);
             }
         }
-
     } catch (error: any) {
         console.error('Error al analizar la imagen con la API (fetch):', error);
         setAnalysisError(`Error al realizar el análisis: ${error.message}. Asegúrate de que la API está accesible y corriendo.`);
@@ -300,10 +354,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   useEffect(() => {
-    // ... (tu código de limpieza al desmontar, sin cambios)
-    console.log("PatientSidebar montado.");
     return () => {
-      console.log("Limpiando al desmontar PatientSidebar...");
       if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
         if (mediaRecorder.current.onerror) mediaRecorder.current.onerror = null;
         try { mediaRecorder.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder during cleanup:", e); }
@@ -318,7 +369,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   }, []);
 
   useEffect(() => {
-    // ... (tu código de limpieza al cambiar de paciente, sin cambios)
       if (patientInfo) {
           setUploadedImages([]);
           setAnalysisResults(null);
@@ -327,6 +377,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           setAudioBlob(null);
           setRecordingError(null);
           setIsRecording(false);
+          setNoteGenerationStatus('idle'); // Resetear estado de notas al cambiar de paciente
            if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
                 if (mediaRecorder.current.onerror) mediaRecorder.current.onerror = null;
                 try { mediaRecorder.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder during patient change cleanup:", e); }
@@ -337,17 +388,14 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
            }
            mediaRecorder.current = null;
            audioChunks.current = [];
-           // El useEffect que procesa NotasConsulta se encargará de actualizar las notas
       }
   }, [patientInfo]);
 
   useEffect(() => {
-    // ... (tu código de scroll, sin cambios)
       if (analysisResultsRef.current && analysisResults !== null) {
           analysisResultsRef.current.scrollTop = 0;
       }
   }, [analysisResults]);
-
 
   return (
     <aside className="bg-white rounded-lg shadow-md h-full flex flex-col overflow-hidden">
@@ -379,7 +427,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           <hr className="my-4 border-gray-200" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-6"> {/* pt-0 para compensar pb-0 del header */}
+      <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-6">
           {patientInfo && (
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Categorías</h3>
@@ -404,32 +452,54 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
               <button
                 onClick={handleMicButtonClick}
                 className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-colors 
-                  ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
+                  ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}
+                  ${isGeneratingNote ? 'opacity-50 cursor-not-allowed' : ''}`}
                 aria-label={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
                 title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
-                disabled={recordingError !== null}
-                style={{ backgroundColor: !isRecording ? '#29a3ac' : undefined }}
-                onMouseEnter={(e) => { if (!isRecording) e.currentTarget.style.backgroundColor = '#238f96'; }}
-                onMouseLeave={(e) => { if (!isRecording) e.currentTarget.style.backgroundColor = '#29a3ac'; }}
+                disabled={recordingError !== null || isGeneratingNote || (isRecording && isGeneratingNote) /* Evitar click si está grabando Y generando */}
+                style={{ backgroundColor: !isRecording && !isGeneratingNote ? '#29a3ac' : undefined }}
+                onMouseEnter={(e) => { if (!isRecording && !isGeneratingNote) e.currentTarget.style.backgroundColor = '#238f96'; }}
+                onMouseLeave={(e) => { if (!isRecording && !isGeneratingNote) e.currentTarget.style.backgroundColor = '#29a3ac'; }}
               >
                 <Mic className="w-8 h-8" />
               </button>
-              {isRecording && <p className="mt-2 text-sm text-red-600">Grabando...</p>}
-              {recordingError && <p className="mt-2 px-3 text-sm text-red-600 text-center">{recordingError}</p>}
+              {isRecording && !isGeneratingNote && <p className="mt-2 text-sm text-red-600">Grabando...</p>}
+              
+              {isGeneratingNote && (
+                <div className="mt-2 flex items-center text-sm text-blue-600">
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  Generando nota...
+                </div>
+              )}
+              {!isGeneratingNote && noteGenerationStatus === 'success' && (
+                <div className="mt-2 flex items-center text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Nota generada y guardada.
+                </div>
+              )}
+              {/* Mostrar error de generación o de grabación si no se está grabando ni generando, y hay un error */}
+              {!isRecording && !isGeneratingNote && recordingError && (
+                 <p className="mt-2 px-3 text-sm text-red-600 text-center">{recordingError}</p>
+              )}
+
+
               <button
                   onClick={handleGenerateNotes}
-                  disabled={!audioBlob || isRecording}
-                  className={`mt-4 text-sm py-2 px-4 rounded-md transition-colors ${!audioBlob || isRecording ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
+                  disabled={!audioBlob || isRecording || isGeneratingNote}
+                  className={`mt-4 text-sm py-2 px-4 rounded-md transition-colors flex items-center justify-center
+                    ${!audioBlob || isRecording || isGeneratingNote 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
               >
-                Generar notas AI
+                {isGeneratingNote ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                Generar nota AI
               </button>
-              {audioBlob && (
+              {audioBlob && !isGeneratingNote && noteGenerationStatus !== 'success' && (
                   <p className="mt-2 text-xs text-gray-500 text-center">Audio grabado ({Math.round(audioBlob.size / 1024)} KB) - Tipo: {audioBlob.type}</p>
               )}
             </div>
           )}
 
-          {/* SECCIÓN MODIFICADA: Notas AI Guardadas */}
           {patientInfo && (
               <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Notas de Consulta Guardadas</h3>
@@ -447,7 +517,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                           </option>
                       ))}
                   </select>
-                  {/* Área para mostrar el contenido de la nota seleccionada */}
                   {selectedNoteContent && (
                     <div 
                         className="mt-2 p-3 text-sm bg-gray-100 rounded-md max-h-[200px] overflow-y-auto text-gray-800 prose prose-sm max-w-none"
@@ -457,7 +526,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                   )}
               </div>
           )}
-
+          
           {patientInfo && (
             <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Análisis de Exámenes AI</h3>

@@ -5,7 +5,6 @@ import {
   Pill,
   ClipboardList,
   FileSpreadsheet,
-  HeartPulse,
   Stethoscope,
   CalendarClock,
   Scissors,

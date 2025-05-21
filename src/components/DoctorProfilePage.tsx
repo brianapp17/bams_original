@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Added useRef
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref as dbRef, set, onValue, off } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -28,7 +28,9 @@ const DoctorProfilePage: React.FC = () => {
   const database = getDatabase(app);
   const storage = getStorage(app);
 
-  // Effect to fetch doctor profile when the user is authenticated
+  // Cleanup function for the temporary object URL created for image preview
+  const photoPreviewUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -47,7 +49,7 @@ const DoctorProfilePage: React.FC = () => {
           } else {
             setDoctorProfile(null);
              // If no profile exists, maybe pre-fill email from auth
-             setFormData({ ...formData, email: user.email || ''});
+             setFormData({ ...formData, email: user.email || ''}); // Pre-fill email if no profile exists
           }
           setIsLoading(false);
         }, (error) => {
@@ -79,7 +81,18 @@ const DoctorProfilePage: React.FC = () => {
 
     // Cleanup auth state change listener
     return () => unsubscribeAuth();
-  }, [auth, database]); // Rerun effect if auth or database instances change
+  }, [auth, database]);
+
+   // Effect to revoke the object URL when the component unmounts or image changes
+   useEffect(() => {
+       return () => {
+           if (photoPreviewUrlRef.current) {
+               URL.revokeObjectURL(photoPreviewUrlRef.current);
+               photoPreviewUrlRef.current = null;
+           }
+       };
+   }, []); // Run only on mount and unmount
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -87,7 +100,20 @@ const DoctorProfilePage: React.FC = () => {
 
    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedImage(e.target.files[0]);
+       // Revoke previous URL if it exists
+       if (photoPreviewUrlRef.current) {
+           URL.revokeObjectURL(photoPreviewUrlRef.current);
+       }
+       // Create and store the new URL
+       photoPreviewUrlRef.current = URL.createObjectURL(e.target.files[0]);
+       setSelectedImage(e.target.files[0]);
+    } else {
+       // If file input is cleared
+       if (photoPreviewUrlRef.current) {
+            URL.revokeObjectURL(photoPreviewUrlRef.current);
+            photoPreviewUrlRef.current = null;
+       }
+       setSelectedImage(null);
     }
   };
 
@@ -95,6 +121,24 @@ const DoctorProfilePage: React.FC = () => {
     setIsEditing(true);
     setSaveError(null);
     setSaveSuccess(null);
+     // When starting to edit, load current profile data into form
+    if(doctorProfile) {
+        setFormData(doctorProfile);
+    } else {
+        // If no profile yet, clear form except email (if pre-filled)
+        setFormData((prev: any) => ({
+          ...prev, // Keep email if it was set from auth
+          nombre: '',
+          apellido: '',
+          dui: '',
+          telefono: '',
+          especialidad: '',
+          direccion: '',
+          horario: '',
+          photoURL: '' // Clear photoURL if no profile existed
+        }));
+    }
+    setSelectedImage(null); // Clear selected image on entering edit mode
   };
 
   const handleCancelClick = () => {
@@ -105,8 +149,9 @@ const DoctorProfilePage: React.FC = () => {
     if(doctorProfile) {
         setFormData(doctorProfile);
     } else {
-         // If no profile exists, clear the form
-        setFormData({
+         // If no profile exists, clear the form, keep email if pre-filled
+        setFormData((prev: any) => ({
+          ...prev, // Keep email if it was set from auth
           nombre: '',
           apellido: '',
           dui: '',
@@ -115,9 +160,14 @@ const DoctorProfilePage: React.FC = () => {
           direccion: '',
           horario: '',
           photoURL: ''
-        });
+        }));
     }
-     setSelectedImage(null); // Clear selected image on cancel
+    // Revoke and clear selected image preview URL
+    if (photoPreviewUrlRef.current) {
+        URL.revokeObjectURL(photoPreviewUrlRef.current);
+        photoPreviewUrlRef.current = null;
+    }
+    setSelectedImage(null);
   };
 
   const handleSaveChanges = async (e: React.FormEvent) => {
@@ -134,7 +184,7 @@ const DoctorProfilePage: React.FC = () => {
     }
 
     const doctorUid = user.uid;
-    let newPhotoURL = formData.photoURL; // Start with existing photoURL
+    let newPhotoURL = formData.photoURL; // Start with existing photoURL from form data
 
     try {
        // Upload new image if selected
@@ -143,6 +193,11 @@ const DoctorProfilePage: React.FC = () => {
         const uploadResult = await uploadBytes(imageRef, selectedImage);
         newPhotoURL = await getDownloadURL(uploadResult.ref);
         console.log('Image uploaded. Download URL:', newPhotoURL);
+         // Revoke the local preview URL after upload is successful
+         if (photoPreviewUrlRef.current) {
+            URL.revokeObjectURL(photoPreviewUrlRef.current);
+            photoPreviewUrlRef.current = null;
+         }
       }
 
       // Data to be saved/updated in Realtime Database
@@ -154,14 +209,16 @@ const DoctorProfilePage: React.FC = () => {
         especialidad: formData.especialidad || '',
         direccion: formData.direccion || '',
         horario: formData.horario || '',
-        photoURL: newPhotoURL || '', // Use the new URL or empty string
-        // createdAt: doctorProfile?.createdAt || new Date().toISOString() // Keep original creation date
+        photoURL: newPhotoURL || '', // Use the new URL (or existing if no new image)
+        // createdAt: doctorProfile?.createdAt || new Date().toISOString() // Keep original creation date - Firebase handles this better if you only update specific fields
          email: user.email || '', // Store email from Auth for easy access
       };
 
       // Save/update data in Realtime Database
       const profileRef = dbRef(database, `doctors/${doctorUid}/perfil`);
-      await set(profileRef, dataToSave);
+       // Using set overwrites the entire /perfil node. If you want to merge fields, use update.
+       // set is fine if you intend the form to always represent the complete profile structure.
+      await set(profileRef, dataToSave); 
 
       setSaveSuccess('Perfil actualizado con éxito!');
       setIsEditing(false);
@@ -191,14 +248,14 @@ const DoctorProfilePage: React.FC = () => {
      );
   }
 
-  // If no profile exists and not editing, show a message or redirect to registration (or allow creating profile here)
+  // If no profile exists and not editing, show a message or allow creating profile
    if (!doctorProfile && !isEditing) {
        return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center text-gray-600 text-lg">
                     <p>No se encontró un perfil de doctor asociado a su cuenta.</p>
                     <button
-                        onClick={handleEditClick}
+                        onClick={handleEditClick} // Click to enter edit mode and create
                         className="mt-4 px-4 py-2 text-white bg-teal-600 rounded-md hover:bg-teal-700"
                     >
                         Crear Perfil
@@ -208,6 +265,7 @@ const DoctorProfilePage: React.FC = () => {
        );
    }
 
+  // Render the profile view or edit form
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -226,22 +284,24 @@ const DoctorProfilePage: React.FC = () => {
         )}
 
         {!isEditing ? (
-          {/* View Mode */}
-          <div>
+          // --- View Mode ---
+          <div> {/* <-- Correct: No extra {} */}
             <div className="flex flex-col items-center mb-6">
               <img
                 src={doctorProfile?.photoURL || '/placeholder-profile.png'} // Use a placeholder if no photoURL
                 alt="Foto de perfil"
                 className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-teal-600"
               />
+              {/* Use doctorProfile directly for display in view mode */}
               <h2 className="text-xl font-semibold text-gray-800">{`${doctorProfile?.nombre || ''} ${doctorProfile?.apellido || ''}`}</h2>
               <p className="text-gray-600">{doctorProfile?.especialidad}</p>
             </div>
 
             <div className="space-y-4">
+              {/* Use doctorProfile directly for display */}
               <div>
                 <p className="text-sm font-medium text-gray-700">Correo electrónico:</p>
-                <p className="text-gray-800">{auth.currentUser?.email || 'N/A'}</p>
+                <p className="text-gray-800">{auth.currentUser?.email || 'N/A'}</p> {/* Email from auth */}
               </div>
                <div>
                 <p className="text-sm font-medium text-gray-700">DUI / Documento ID:</p>
@@ -271,11 +331,12 @@ const DoctorProfilePage: React.FC = () => {
             </div>
           </div>
         ) : (
-          {/* Edit Mode */}
-          <form onSubmit={handleSaveChanges} className="space-y-4">
+          // --- Edit Mode ---
+          <form onSubmit={handleSaveChanges} className="space-y-4"> {/* <-- Correct: No extra {} */}
              <div className="flex flex-col items-center mb-6">
                  <img
-                    src={selectedImage ? URL.createObjectURL(selectedImage) : (formData.photoURL || '/placeholder-profile.png')}
+                    // Use the selected image URL preview, or the existing photoURL from formData
+                    src={selectedImage ? photoPreviewUrlRef.current || '/placeholder-profile.png' : (formData.photoURL || '/placeholder-profile.png')}
                     alt="Foto de perfil preview"
                     className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-teal-600"
                   />
@@ -370,7 +431,7 @@ const DoctorProfilePage: React.FC = () => {
                 <input
                   type="email"
                   id="email"
-                  name="email"
+                  name="email" // Keep name attribute
                   value={auth.currentUser?.email || ''}
                   disabled // Email from auth is not editable directly here
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100 cursor-not-allowed"
