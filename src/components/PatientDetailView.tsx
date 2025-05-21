@@ -177,6 +177,7 @@ const PatientDetailView: React.FC = () => {
               birthDate: patientData.birthDate,
               gender: patientData.gender,
               identifier: patientData.identifier?.[0]?.value || patientData.dui,
+              NotasConsulta: patientData.NotasConsulta
             });
 
             if (unsubscribeRecordsCleanup) unsubscribeRecordsCleanup();

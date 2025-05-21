@@ -6,17 +6,29 @@ export interface ApiResponse {
 
 export interface ApiResult {
   document: {
-    id: any;
-    structData: any;
+    id: any; // Consider using a more specific type if possible, e.g., string
+    structData: any; // FHIR resources are complex, 'any' is practical here unless you type them individually
   };
 }
+
+// --- Tipos para NotasConsulta ---
+export interface NotaConsultaItem {
+  response: string; // El texto de la nota
+}
+
+export interface NotasConsultaType {
+  [dateKey: string]: NotaConsultaItem; // La clave es la fecha/timestamp (string), el valor es el objeto de la nota
+}
+// --- Fin Tipos para NotasConsulta ---
+
 
 export interface PatientInfo {
   name: string;
   id: string;
   birthDate: string;
   gender: string;
-  identifier: string;
+  identifier: string; // Usualmente el DUI para la UI
+  NotasConsulta?: NotasConsultaType; // Notas de consulta para el paciente, opcional
 }
 
 // Define a comprehensive Patient type based on Firebase structure
@@ -30,13 +42,31 @@ export interface Patient {
   }[];
   gender: 'male' | 'female' | 'other' | 'unknown';
   birthDate: string; // YYYY-MM-DD
-  dui: string;
+  dui: string; // Manteniendo DUI como campo principal si es usado así en la DB
   identifier: {
     system: string; // e.g., "urn:elsalvador:dui"
     value: string;
   }[];
   createdAt?: string; // Optional: timestamp of creation
-  // Add any other fields you store directly under the patient node
+
+  // --- Campo añadido para NotasConsulta ---
+  NotasConsulta?: NotasConsultaType; // Este es el nuevo campo
+  // --- Fin Campo añadido ---
+
+  // Estructura para los diferentes tipos de recursos médicos anidados bajo el paciente
+  // Estos son opcionales porque un nuevo paciente podría no tenerlos.
+  // La clave es el ID del recurso específico.
+  observations?: { [key: string]: any }; // Reemplazar 'any' con el tipo FHIR Observation si lo tienes
+  conditions?: { [key: string]: any }; // Reemplazar 'any' con el tipo FHIR Condition
+  procedures?: { [key: string]: any };
+  encounters?: { [key: string]: any };
+  medicationAdministrations?: { [key: string]: any };
+  medicationAdministrationsDuplicate?: { [key: string]: any }; // Si es un tipo separado
+  allergyIntolerances?: { [key: string]: any };
+  clinicalImpressions?: { [key: string]: any };
+  immunizations?: { [key: string]: any };
+  medicationRequests?: { [key: string]: any };
+  // Añadir otros tipos de recursos si los tienes (DiagnosticReport, ServiceRequest, etc.)
 }
 
 
@@ -55,10 +85,7 @@ export interface ChatMessage {
 }
 
 export interface PatientListItem {
-  // This was defined for the PatientSelector, let's align it with the Patient type
-  // Or create a mapping function if the source for PatientListItem is different
-  id: string; // Align with Patient.id
-  Name: string; // This would be derived from patient.name
-  // Consider if other fields like DUI are needed for the list item
-  dui?: string;
+  id: string;
+  Name: string; // Derivado de patient.name
+  dui?: string; // Opcional si lo necesitas en la lista
 }

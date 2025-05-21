@@ -1,18 +1,20 @@
 // PatientSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { PatientInfo } from '../types';
+import { PatientInfo, NotasConsultaType, NotaConsultaItem } from '../types'; // Asegúrate de definir estos tipos
 import { User, Mic } from 'lucide-react';
 import { FileUp, Scan } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm'; // Asegúrate de importar remarkGfm
+import remarkGfm from 'remark-gfm';
 
-interface SavedNote {
-  id: string;
-  title: string;
+// Interfaz para las notas formateadas para el dropdown
+interface FormattedNote {
+  id: string; // Será la fecha/timestamp
+  title: string; // Un título legible, ej: "Nota del 21/05/2024"
+  content: string; // El contenido de la nota (response)
 }
 
 interface PatientSidebarProps {
-  patientInfo: PatientInfo | null;
+  patientInfo: PatientInfo | null; // PatientInfo DEBE incluir NotasConsulta
   categories: string[];
   selectedCategory: string | null;
   setSelectedCategory: (category: string | null) => void;
@@ -34,13 +36,11 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   const audioChunks = useRef<Blob[]>([]);
   const audioStream = useRef<MediaStream | null>(null);
 
-  const savedNotesPlaceholder: SavedNote[] = [
-    { id: 'note-1', title: 'Consulta inicial - 2023-10-26' },
-    { id: 'note-2', title: 'Seguimiento - 2023-11-15' },
-    { id: 'note-3', title: 'Resultados de laboratorio - 2024-01-10' },
-    { id: 'note-4', title: 'Evaluación post-tratamiento - 2024-03-01' },
-  ];
-  const [selectedSavedNote, setSelectedSavedNote] = useState<string>('');
+  // Estado para las notas formateadas obtenidas del paciente
+  const [savedNotes, setSavedNotes] = useState<FormattedNote[]>([]);
+  const [selectedSavedNoteId, setSelectedSavedNoteId] = useState<string>('');
+  const [selectedNoteContent, setSelectedNoteContent] = useState<string | null>(null);
+
 
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
@@ -48,9 +48,48 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const analysisResultsRef = useRef<HTMLDivElement>(null); // Referencia para scroll
+  const analysisResultsRef = useRef<HTMLDivElement>(null);
+
+  // Efecto para procesar NotasConsulta cuando patientInfo cambie
+  useEffect(() => {
+    if (patientInfo && patientInfo.NotasConsulta) {
+      const notasDelPaciente = patientInfo.NotasConsulta;
+      const formatted: FormattedNote[] = Object.entries(notasDelPaciente)
+        .map(([dateKey, noteData]) => {
+          // Intentar formatear la fecha de forma legible
+          let displayDate = dateKey;
+          try {
+            displayDate = new Date(dateKey).toLocaleDateString('es-ES', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              // hour: '2-digit', // Descomentar si quieres la hora
+              // minute: '2-digit'
+            });
+          } catch (e) {
+            console.warn("No se pudo parsear la fecha de la nota:", dateKey);
+          }
+          return {
+            id: dateKey, // Usar la clave original (fecha/timestamp) como ID
+            title: `Nota - ${displayDate}`,
+            content: noteData.response,
+          };
+        })
+        .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime()); // Ordenar por fecha descendente (más nuevas primero)
+      
+      setSavedNotes(formatted);
+      setSelectedSavedNoteId(''); // Resetear selección
+      setSelectedNoteContent(null); // Resetear contenido
+    } else {
+      setSavedNotes([]); // Si no hay paciente o notas, vaciar
+      setSelectedSavedNoteId('');
+      setSelectedNoteContent(null);
+    }
+  }, [patientInfo]);
+
 
   const startRecording = async () => {
+    // ... (tu código de startRecording sin cambios)
     setRecordingError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -108,6 +147,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const stopRecording = () => {
+    // ... (tu código de stopRecording sin cambios)
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       console.log("Deteniendo grabación...");
       mediaRecorder.current.stop();
@@ -116,6 +156,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleMicButtonClick = () => {
+    // ... (tu código de handleMicButtonClick sin cambios)
     if (isRecording) {
       stopRecording();
     } else {
@@ -126,6 +167,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
    const handleGenerateNotes = () => {
+    // ... (tu código de handleGenerateNotes sin cambios)
       if (!audioBlob) {
           console.warn("No hay audio grabado para generar notas.");
           setRecordingError("Por favor, graba audio antes de generar notas.");
@@ -139,6 +181,8 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
       formData.append('patientId', patientInfo?.id || '');
       console.log("Simulando envío a la API para generar notas...");
       // Aquí iría la lógica real para enviar el audio a tu API
+      // Y al recibir la respuesta, la guardarías en Firebase bajo patientInfo.id / NotasConsulta / [timestamp]
+      // Luego, el useEffect de arriba actualizaría la lista 'savedNotes'
    };
 
   const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -147,39 +191,48 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   const handleSavedNoteChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const noteId = event.target.value;
-    setSelectedSavedNote(noteId);
-    console.log("Nota guardada seleccionada (simulado):", noteId);
+    const noteId = event.target.value; // Este ID es la fecha/timestamp original
+    setSelectedSavedNoteId(noteId);
+    if (noteId) {
+        const note = savedNotes.find(n => n.id === noteId);
+        setSelectedNoteContent(note ? note.content : null);
+    } else {
+        setSelectedNoteContent(null);
+    }
+    console.log("Nota guardada seleccionada:", noteId);
   };
 
   const handleUploadButtonClick = () => {
-    setUploadedImages([]); // Limpiar imágenes al subir una nueva
-    setAnalysisResults(null); // Limpiar resultados previos
+    // ... (tu código sin cambios)
+    setUploadedImages([]);
+    setAnalysisResults(null);
     setAnalysisError(null);
     fileInputRef.current?.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // ... (tu código sin cambios)
     const files = event.target.files;
     if (files && files.length > 0) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
       const validFiles = Array.from(files).filter(file => allowedTypes.includes(file.type));
       if (validFiles.length > 0) {
-          setUploadedImages([validFiles[0]]); // Solo procesar el primer archivo válido si multiple=false
+          setUploadedImages([validFiles[0]]);
       } else {
           setUploadedImages([]);
           setAnalysisError("Tipo de archivo no permitido. Por favor, sube una imagen (JPEG, PNG, GIF, BMP, WEBP).");
       }
       console.log("Archivos seleccionados:", validFiles);
-      event.target.value = ''; // Clear the input so the same file can be selected again
+      event.target.value = '';
     } else {
         setUploadedImages([]);
-        setAnalysisError(null); // Clear error if selection is cancelled
+        setAnalysisError(null);
         console.log("Selección de archivos cancelada.");
     }
   };
 
   const handleAnalyzeExams = async () => {
+    // ... (tu código sin cambios)
     if (uploadedImages.length === 0) {
         setAnalysisError("Por favor, sube al menos una imagen para analizar.");
         return;
@@ -196,10 +249,9 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
 
     const apiUrl = 'https://bamsimage-127465468754.us-central1.run.app';
     const formData = new FormData();
-    // Usar un prompt más específico para el análisis de imagen en contexto del paciente
     const analysisPrompt = `Analiza la siguiente imagen médica en el contexto de los registros médicos del paciente proporcionados en formato FHIR. Identifica hallazgos relevantes y su posible relación con el historial del paciente. Presenta los resultados de forma clara y estructurada. Registros FHIR del paciente: ${fhirData}`;
 
-    formData.append('prompt', analysisPrompt); // Usar el prompt combinado
+    formData.append('prompt', analysisPrompt);
     formData.append('image_file', uploadedImages[0]);
 
     console.log("Enviando datos para análisis de imagen a:", apiUrl);
@@ -223,23 +275,17 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
             if (outerResult && typeof outerResult.response === 'string') {
                 let contentFromApi = outerResult.response;
                 console.log("Contenido dentro de 'response' (crudo):", contentFromApi);
-
-                // Limpieza de delimitadores ``` (json, etc.)
                 contentFromApi = contentFromApi.replace(/^```(?:\w*\n)?/, '').replace(/```$/, '');
                 console.log("Contenido después de quitar delimitadores ```:", contentFromApi);
-
-                // Intentar mantener el formato original tanto como sea posible si es Markdown
                 setAnalysisResults(contentFromApi);
-
             } else {
                 throw new Error("Estructura de respuesta de la API inesperada o 'response' no es un string.");
             }
         } catch (jsonError: any) {
             console.error('Error al procesar la respuesta de la API (parseo exterior o estructura):', jsonError);
-            // Si falla el parseo, intentar mostrar el texto crudo si no parece ser JSON
             if (resultText && !resultText.trim().startsWith('{') && !resultText.trim().startsWith('[')) {
                  console.log("La respuesta no es JSON, pero podría ser texto/Markdown. Mostrando directamente:", resultText);
-                 setAnalysisResults(resultText); // Intentar mostrar como Markdown/texto
+                 setAnalysisResults(resultText);
             } else {
                  setAnalysisError(`Error al procesar la respuesta del análisis: ${jsonError.message}. Intenta de nuevo.`);
             }
@@ -254,6 +300,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   };
 
   useEffect(() => {
+    // ... (tu código de limpieza al desmontar, sin cambios)
     console.log("PatientSidebar montado.");
     return () => {
       console.log("Limpiando al desmontar PatientSidebar...");
@@ -271,8 +318,8 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   }, []);
 
   useEffect(() => {
+    // ... (tu código de limpieza al cambiar de paciente, sin cambios)
       if (patientInfo) {
-          // Reiniciar estado al cambiar de paciente
           setUploadedImages([]);
           setAnalysisResults(null);
           setAnalysisError(null);
@@ -290,11 +337,12 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
            }
            mediaRecorder.current = null;
            audioChunks.current = [];
+           // El useEffect que procesa NotasConsulta se encargará de actualizar las notas
       }
   }, [patientInfo]);
 
-  // Scroll analysis results to top when they change
   useEffect(() => {
+    // ... (tu código de scroll, sin cambios)
       if (analysisResultsRef.current && analysisResults !== null) {
           analysisResultsRef.current.scrollTop = 0;
       }
@@ -302,18 +350,16 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
 
 
   return (
-    // ROOT element: Must take full height and be a flex column container
-    <aside className="bg-white rounded-lg shadow-md h-full flex flex-col overflow-hidden"> {/* Removed fixed, w-64, p-4, border-r */}
-      {/* Header/Patient Info Section (Flex-shrink-0) */}
-      <div className="p-4 pb-0 flex-shrink-0"> {/* Added p-4 back, pb-0 for spacing control */}
-          <div className="flex items-center gap-2 text-gray-800 mb-3"> {/* mb-3 to add space below icon/title */}
+    <aside className="bg-white rounded-lg shadow-md h-full flex flex-col overflow-hidden">
+      <div className="p-4 pb-0 flex-shrink-0">
+          <div className="flex items-center gap-2 text-gray-800 mb-3">
             <User className="w-5 h-5" />
             <span className="font-medium">Información del Paciente</span>
           </div>
           {patientInfo && (
-            <div className="space-y-2 text-sm text-gray-700 mb-4"> {/* space-y-2, mb-4 for bottom margin */}
+            <div className="space-y-2 text-sm text-gray-700 mb-4">
               <div>
-                <p className="text-xs text-gray-500">Nombre</p> {/* Smaller text for labels */}
+                <p className="text-xs text-gray-500">Nombre</p>
                 <p className="font-medium">{patientInfo.name}</p>
               </div>
               <div>
@@ -330,16 +376,10 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
               </div>
             </div>
           )}
-
-          <hr className="my-4 border-gray-200" /> {/* Keep separator */}
+          <hr className="my-4 border-gray-200" />
       </div>
 
-
-      {/* Main Content Area (Flex-1, Scrollable) */}
-      {/* This div takes up remaining space and handles scrolling for its content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6"> {/* Added flex-1, overflow-y-auto, p-4, space-y-6 */}
-
-          {/* Categories Dropdown */}
+      <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-6"> {/* pt-0 para compensar pb-0 del header */}
           {patientInfo && (
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Categorías</h3>
@@ -358,7 +398,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
             </div>
           )}
 
-          {/* AI Notes Section (Generation) */}
           {patientInfo && (
             <div className="flex flex-col items-center">
               <h3 className="text-sm font-medium text-gray-700 mb-2">Notas AI (Audio)</h3>
@@ -390,29 +429,35 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
             </div>
           )}
 
-          {/* Saved AI Notes Dropdown */}
+          {/* SECCIÓN MODIFICADA: Notas AI Guardadas */}
           {patientInfo && (
               <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Notas AI Guardadas</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Notas de Consulta Guardadas</h3>
                   <select
-                    value={selectedSavedNote}
+                    value={selectedSavedNoteId}
                     onChange={handleSavedNoteChange}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
-                      <option value="" disabled>Seleccionar nota guardada</option>
-                      {savedNotesPlaceholder.map((note) => (
+                      <option value="" disabled={savedNotes.length > 0}>
+                        {savedNotes.length > 0 ? "Seleccionar nota guardada" : "No hay notas guardadas"}
+                      </option>
+                      {savedNotes.map((note) => (
                           <option key={note.id} value={note.id}>
                               {note.title}
                           </option>
                       ))}
-                      {savedNotesPlaceholder.length === 0 && (
-                          <option value="" disabled>No hay notas guardadas</option>
-                      )}
                   </select>
+                  {/* Área para mostrar el contenido de la nota seleccionada */}
+                  {selectedNoteContent && (
+                    <div 
+                        className="mt-2 p-3 text-sm bg-gray-100 rounded-md max-h-[200px] overflow-y-auto text-gray-800 prose prose-sm max-w-none"
+                    >
+                        <ReactMarkdown children={selectedNoteContent} remarkPlugins={[remarkGfm]} />
+                    </div>
+                  )}
               </div>
           )}
 
-          {/* AI Exam Analysis Section */}
           {patientInfo && (
             <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Análisis de Exámenes AI</h3>
@@ -426,7 +471,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                         <p className="text-red-600">{analysisError}</p>
                     ) : analysisResults ? (
                         <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown children={analysisResults} remarkPlugins={[remarkGfm]} /> {/* Use remarkGfm */}
+                          <ReactMarkdown children={analysisResults} remarkPlugins={[remarkGfm]} />
                         </div>
                     ) : uploadedImages.length > 0 ? (
                         <>
@@ -445,7 +490,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                   <input
                       type="file"
                       accept="image/*"
-                      multiple={false} // Asegurar que solo se permite una imagen
+                      multiple={false}
                       ref={fileInputRef}
                       onChange={handleFileChange}
                       className="hidden"
@@ -474,7 +519,6 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           </div>
           )}
       </div>
-
     </aside>
   );
 };
