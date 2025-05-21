@@ -106,10 +106,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 
   return (
-    // Este <aside> es el contenedor principal del sidebar del chat.
-    // flex-1 min-h-0 le dice que ocupe toda la altura disponible que le dé su padre (el div en PatientDetailView) y maneje su propio overflow.
-    // flex flex-col le dice que organice sus hijos (encabezado, mensajes, input) verticalmente.
-    <aside className="bg-white w-80 h-full flex flex-col border-l">
+    // CAMBIO CLAVE AQUÍ: Se añade 'rounded-lg' y 'shadow-md', se elimina 'border-l'
+    <aside className="bg-white w-80 h-full flex flex-col rounded-lg shadow-md">
 
       {/* Este div es el encabezado. flex-shrink-0 evita que se encoja */}
       <div className="flex items-center gap-2 text-gray-800 p-4 pb-2 flex-shrink-0 border-b">
