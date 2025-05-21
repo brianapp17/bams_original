@@ -20,12 +20,11 @@ interface MedicalRecordsProps {
   results: ApiResponse | null;
   isLoading: boolean;
   selectedCategory: string | null;
+  searchQuery: string;
 }
 
 const MedicalRecords: React.FC<MedicalRecordsProps> = ({
-  results,
-  isLoading,
-  selectedCategory
+  ...props // Keep all props here, destructure inside
 }) => {
   const formatDate = (dateString: string | undefined | null) => { // Acepta undefined/null
     if (!dateString) return 'Fecha desconocida';
@@ -189,96 +188,222 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
         }
     };
 
-
-  const filterResultsByCategory = (resultsToFilter: ApiResponse['results']) => {
-    if (!selectedCategory || selectedCategory.toLowerCase() === 'todo' || selectedCategory.toLowerCase() === 'todos') {
-        return resultsToFilter;
-    }
-
-    return resultsToFilter.filter(result => {
-      // Asegurarse que result.document y result.document.structData existen
-      const data = result?.document?.structData;
-      if (!data) return false;
-
-      let matches = false;
-      const currentCategoryLabel = getCategoryLabel(selectedCategory); // Obtener el label una vez
-
-      // Helper para verificar categorías
-      const checkCategory = (resourceCategories: any[] | undefined) => {
-        if (!resourceCategories) return false;
-        return resourceCategories.some((cat: any) =>
-          getCategoryLabel(cat.text) === currentCategoryLabel ||
-          cat.coding?.some((code: any) => getCategoryLabel(code.code) === currentCategoryLabel || getCategoryLabel(code.display) === currentCategoryLabel)
-        );
-      };
-
-      if (data.DiagnosticReport?.category) {
-        matches = checkCategory(data.DiagnosticReport.category);
-      }
-
-      if (!matches && data.Observation?.category) {
-        matches = checkCategory(data.Observation.category);
-      }
-
-      if (!matches && data.Condition?.category) {
-        matches = checkCategory(data.Condition.category);
-      }
-
-      if (!matches && data.Encounter?.type) {
-        // Encounter.type es similar a category para otros recursos
-        matches = checkCategory(data.Encounter.type);
-      }
-
-      // Para recursos que no tienen un campo 'category' explícito o usan otro campo para la clasificación
-      if (!matches && data.Procedure) { // Asume que si existe 'Procedure', coincide con la categoría "Procedimiento"
-           if (getCategoryLabel('Procedimiento') === currentCategoryLabel || getCategoryLabel('procedure') === currentCategoryLabel) {
-               matches = true;
-           }
-      }
-
-       if (!matches && (data.MedicationAdministration || data.MedicationAdministrationDuplicate)) {
-           if (getCategoryLabel('Medication') === currentCategoryLabel || getCategoryLabel('Medicación') === currentCategoryLabel || getCategoryLabel('Medicamento Administrado') === currentCategoryLabel) {
-               matches = true;
-           }
-       }
-
-        if (!matches && data.AllergyIntolerance) {
-            if (getCategoryLabel('allergy') === currentCategoryLabel || getCategoryLabel('Alergias') === currentCategoryLabel || getCategoryLabel('Alergia') === currentCategoryLabel) {
-                matches = true;
+    const filterResults = (resultsToFilter: ApiResponse['results'], category: string | null, query: string) => {
+      const lowerCaseQuery = query.toLowerCase();
+      const currentCategoryLabel = category ? getCategoryLabel(category) : null;
+      const isFilteringByCategory = currentCategoryLabel && currentCategoryLabel.toLowerCase() !== 'todo' && currentCategoryLabel.toLowerCase() !== 'todos';
+  
+      return resultsToFilter.filter(result => {
+        const data = result?.document?.structData;
+        if (!data) return false;
+  
+        let matchesCategory = true;
+        let matchesSearchQuery = true;
+  
+        // 1. Filter by Category
+        if (isFilteringByCategory) {
+            matchesCategory = false; // Assume no match initially
+  
+            // Helper to check categories for resource types that have a 'category' array
+            const checkResourceCategory = (resourceCategories: any[] | undefined) => {
+                if (!resourceCategories) return false;
+                return resourceCategories.some((cat: any) =>
+                    getCategoryLabel(cat.text) === currentCategoryLabel ||
+                    cat.coding?.some((code: any) => getCategoryLabel(code.code) === currentCategoryLabel || getCategoryLabel(code.display) === currentCategoryLabel)
+                );
+            };
+  
+            if (data.DiagnosticReport) {
+                matchesCategory = checkResourceCategory(data.DiagnosticReport.category);
+                if (!matchesCategory && (getCategoryLabel('DiagnosticReport') === currentCategoryLabel || getCategoryLabel('Reporte Diagnóstico') === currentCategoryLabel)) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.Observation) {
+                matchesCategory = checkResourceCategory(data.Observation.category);
+                 if (!matchesCategory && (getCategoryLabel('Observation') === currentCategoryLabel || getCategoryLabel('Observación y Resultados') === currentCategoryLabel)) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.Condition) {
+                matchesCategory = checkResourceCategory(data.Condition.category);
+                if (!matchesCategory && (getCategoryLabel('Condition') === currentCategoryLabel || getCategoryLabel('Condición Médica') === currentCategoryLabel)) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.Encounter) {
+                // Encounter.type is similar to category for other resources
+                matchesCategory = checkResourceCategory(data.Encounter.type);
+                if (!matchesCategory && (getCategoryLabel('Encounter') === currentCategoryLabel || getCategoryLabel('Encuentro') === currentCategoryLabel)) {
+                    matchesCategory = true;
+                }
+            }
+  
+            // For resources that don't have an explicit 'category' field but match a category name
+            if (!matchesCategory && data.Procedure) {
+                if (getCategoryLabel('Procedimiento') === currentCategoryLabel || getCategoryLabel('procedure') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && (data.MedicationAdministration || data.MedicationAdministrationDuplicate)) {
+                if (getCategoryLabel('Medication') === currentCategoryLabel || getCategoryLabel('Medicación') === currentCategoryLabel || getCategoryLabel('Medicamento Administrado') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.AllergyIntolerance) {
+                if (getCategoryLabel('allergy') === currentCategoryLabel || getCategoryLabel('Alergias') === currentCategoryLabel || getCategoryLabel('Alergia') === currentCategoryLabel || getCategoryLabel('Alergia/Intolerancia') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.ClinicalImpression) {
+                if (getCategoryLabel('clinical-note') === currentCategoryLabel || getCategoryLabel('Diagnóstico Médico') === currentCategoryLabel || getCategoryLabel('ClinicalImpression') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.Immunization) {
+                if (getCategoryLabel('immunization') === currentCategoryLabel || getCategoryLabel('Vacunación') === currentCategoryLabel || getCategoryLabel('Inmunización') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+  
+            if (!matchesCategory && data.ServiceRequest) {
+                if (getCategoryLabel('ServiceRequest') === currentCategoryLabel || getCategoryLabel('Solicitud de Servicio') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+            if (!matchesCategory && data.MedicationRequest) {
+                if (getCategoryLabel('MedicationRequest') === currentCategoryLabel || getCategoryLabel('Prescripción Médica') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
+            }
+            if (!matchesCategory && data.MedicationDispense) {
+                if (getCategoryLabel('MedicationDispense') === currentCategoryLabel || getCategoryLabel('Entrega de Medicamento') === currentCategoryLabel) {
+                    matchesCategory = true;
+                }
             }
         }
+  
+        // If filtering by category is active and it doesn't match, exclude immediately
+        if (isFilteringByCategory && !matchesCategory) {
+            return false;
+        }
+  
+        // 2. Filter by Search Query
+        if (lowerCaseQuery) {
+            matchesSearchQuery = false; // Assume no match initially
+  
+            // Collect all potentially searchable text from the resource data
+            let specificSearchFields = '';
+            let resourceDisplayName = ''; // Nuevo: para almacenar el título del registro
 
-        if (!matches && data.ClinicalImpression) {
-            if (getCategoryLabel('clinical-note') === currentCategoryLabel || getCategoryLabel('Diagnóstico Médico') === currentCategoryLabel) {
-                 matches = true;
-             }
+            if (data.DiagnosticReport) {
+                specificSearchFields += (data.DiagnosticReport.conclusion || '') + ' ' + (data.DiagnosticReport.category?.[0]?.text || '');
+                specificSearchFields += ' ' + (data.DiagnosticReport.code?.coding?.[0]?.display || '') + ' ' + (data.DiagnosticReport.code?.coding?.[0]?.code || '');
+                resourceDisplayName = 'Reporte Diagnóstico';
+            } else if (data.Observation) {
+                specificSearchFields += (data.Observation.code?.text || '') + ' ' + (data.Observation.valueString || '') + ' ' + (data.Observation.note?.[0]?.text || '');
+                // Añadir búsqueda en display y code para Observation code
+                 specificSearchFields += ' ' + (data.Observation.code?.coding?.[0]?.display || '') + ' ' + (data.Observation.code?.coding?.[0]?.code || '');
+                resourceDisplayName = 'Observación y Resultados';
+            } else if (data.Condition) {
+                specificSearchFields += (data.Condition.code?.text || '') + ' ' + (data.Condition.note?.[0]?.text || '');
+                // Añadir búsqueda en display y code para Condition code
+                specificSearchFields += ' ' + (data.Condition.code?.coding?.[0]?.display || '') + ' ' + (data.Condition.code?.coding?.[0]?.code || '');
+                resourceDisplayName = 'Condición Médica';
+            } else if (data.Encounter) {
+                 specificSearchFields += (data.Encounter.type?.[0]?.text || '') + ' ' + (data.Encounter.reasonCode?.[0]?.text || '') + ' ' + (data.Encounter.note?.[0]?.text || '');
+                 // Añadir búsqueda en display para Encounter type y reasonCode
+                 specificSearchFields += ' ' + (data.Encounter.type?.[0]?.coding?.[0]?.display || '') + ' ' + (data.Encounter.reasonCode?.[0]?.coding?.[0]?.display || '');
+                resourceDisplayName = 'Encuentro';
+            } else if (data.Procedure) {
+                specificSearchFields += (data.Procedure.code?.text || '') + ' ' + (data.Procedure.note?.[0]?.text || '');
+                 // Añadir búsqueda en display para Procedure code
+                specificSearchFields += ' ' + (data.Procedure.code?.coding?.[0]?.display || '');
+                resourceDisplayName = 'Procedimiento';
+            } else if (data.MedicationAdministration || data.MedicationAdministrationDuplicate) {
+                 const medAdminData = data.MedicationAdministration || data.MedicationAdministrationDuplicate;
+                 const medName = (medAdminData?.medicationCodeableConcept?.text || medAdminData?.medicationReference?.display || '');
+                 specificSearchFields += medName + ' ' + (medAdminData?.note?.[0]?.text || '');
+                 // **Campos adicionales para búsqueda de medicamentos:**
+                 specificSearchFields += ' ' + (medAdminData?.medicationCodeableConcept?.coding?.[0]?.display || ''); // display del coding
+                 specificSearchFields += ' ' + (medAdminData?.medicationCodeableConcept?.coding?.[0]?.code || ''); // code del coding
+                 if (medAdminData?.dosage?.route?.text) {
+                     specificSearchFields += ' ' + getMedicationRouteDisplay(medAdminData.dosage.route.text); // Nombre de la ruta
+                 }
+                 if (medAdminData?.dosage?.dose?.unit) {
+                     specificSearchFields += ' ' + medAdminData.dosage.dose.unit; // Unidad de la dosis
+                 }
+                resourceDisplayName = 'Medicamento Administrado';
+            } else if (data.ServiceRequest) {
+                specificSearchFields += (data.ServiceRequest.code?.text || data.ServiceRequest.code?.coding?.[0]?.display || '') + ' ' + (data.ServiceRequest.note?.[0]?.text || '');
+                 // Añadir búsqueda en display y code para ServiceRequest code
+                specificSearchFields += ' ' + (data.ServiceRequest.code?.coding?.[0]?.code || '');
+                resourceDisplayName = 'Solicitud de Servicio';
+            } else if (data.MedicationRequest) {
+                 const medRequestData = data.MedicationRequest;
+                 const medName = (medRequestData.medicationCodeableConcept?.text || medRequestData.medicationCodeableConcept?.coding?.[0]?.display || medRequestData.medicationReference?.display || '');
+                 specificSearchFields += medName + ' ' + (medRequestData.dosageInstruction?.[0]?.text || '') + ' ' + (medRequestData.note?.[0]?.text || '');
+                  // **Campos adicionales para búsqueda de medicamentos (Request):**
+                 specificSearchFields += ' ' + (medRequestData.medicationCodeableConcept?.coding?.[0]?.code || ''); // code del coding
+                 if (medRequestData.dosageInstruction?.[0]?.route?.text) {
+                      specificSearchFields += ' ' + getMedicationRouteDisplay(medRequestData.dosageInstruction[0].route.text); // Nombre de la ruta
+                 }
+                resourceDisplayName = 'Prescripción Médica';
+            } else if (data.MedicationDispense) {
+                 const medDispenseData = data.MedicationDispense;
+                 const dispenseMedicationName = (medDispenseData.medicationCodeableConcept?.text || medDispenseData.medicationCodeableConcept?.coding?.[0]?.display || medDispenseData.medicationReference?.display || '');
+                 specificSearchFields += dispenseMedicationName + ' ' + (medDispenseData.note?.[0]?.text || '');
+                 // **Campos adicionales para búsqueda de medicamentos (Dispense):**
+                 specificSearchFields += ' ' + (medDispenseData.medicationCodeableConcept?.coding?.[0]?.code || ''); // code del coding
+                  if (medDispenseData.quantity?.unit) {
+                      specificSearchFields += ' ' + medDispenseData.quantity.unit; // Unidad de la cantidad
+                  }
+                resourceDisplayName = 'Entrega de Medicamento';
+            } else if (data.AllergyIntolerance) {
+                specificSearchFields += (data.AllergyIntolerance.code?.text || data.AllergyIntolerance.code?.coding?.[0]?.display || '') + ' ' + (data.AllergyIntolerance.note?.[0]?.text || '');
+                // Añadir búsqueda en code para AllergyIntolerance code
+                specificSearchFields += ' ' + (data.AllergyIntolerance.code?.coding?.[0]?.code || '');
+                resourceDisplayName = 'Alergia/Intolerancia';
+            } else if (data.ClinicalImpression) {
+                 specificSearchFields += (data.ClinicalImpression.description || '') + ' ' + (data.ClinicalImpression.summary || '') + ' ' + (data.ClinicalImpression.note?.[0]?.text || '');
+                resourceDisplayName = 'Diagnóstico Médico';
+            } else if (data.Immunization) {
+                specificSearchFields += (data.Immunization.vaccineCode?.text || data.Immunization.vaccineCode?.coding?.[0]?.display || '') + ' ' + (data.Immunization.note?.[0]?.text || '');
+                 // Añadir búsqueda en code para Immunization vaccineCode
+                specificSearchFields += ' ' + (data.Immunization.vaccineCode?.coding?.[0]?.code || '');
+                 if (data.Immunization.route?.text) {
+                     specificSearchFields += ' ' + getMedicationRouteDisplay(data.Immunization.route.text); // Nombre de la ruta de administración de la vacuna
+                 }
+                  if (data.Immunization.doseQuantity?.unit) {
+                     specificSearchFields += ' ' + data.Immunization.doseQuantity.unit; // Unidad de la dosis de la vacuna
+                 }
+                resourceDisplayName = 'Inmunización';
+            }
+  
+            // AÑADE EL NOMBRE VISIBLE DEL RECURSO A LA BÚSQUEDA
+            specificSearchFields += ' ' + resourceDisplayName;
+  
+            // Realizar la búsqueda insensible a mayúsculas y acentos en los campos específicos y en el JSON completo
+            const textToSearch = (specificSearchFields + ' ' + JSON.stringify(data)).toLowerCase();
+            const normalizedQuery = lowerCaseQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Eliminar acentos de la query
+            const normalizedText = textToSearch.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Eliminar acentos del texto a buscar
+  
+            matchesSearchQuery = normalizedText.includes(normalizedQuery);
         }
+  
+        // Combine filters: Must match category (if filtering by category) AND search query (if query exists)
+        return (!isFilteringByCategory || matchesCategory) && (!lowerCaseQuery || matchesSearchQuery);
+      });
+    };
 
-        if (!matches && data.Immunization) {
-            if (getCategoryLabel('immunization') === currentCategoryLabel || getCategoryLabel('Vacunación') === currentCategoryLabel || getCategoryLabel('Inmunización') === currentCategoryLabel) {
-                matches = true;
-            }
-        }
-
-        if (!matches && data.ServiceRequest) {
-            if (getCategoryLabel('ServiceRequest') === currentCategoryLabel || getCategoryLabel('Solicitud de Servicio') === currentCategoryLabel) {
-                matches = true;
-            }
-        }
-        if (!matches && data.MedicationRequest) {
-            if (getCategoryLabel('MedicationRequest') === currentCategoryLabel || getCategoryLabel('Prescripción Médica') === currentCategoryLabel) {
-                matches = true;
-            }
-        }
-        if (!matches && data.MedicationDispense) {
-            if (getCategoryLabel('MedicationDispense') === currentCategoryLabel || getCategoryLabel('Entrega de Medicamento') === currentCategoryLabel) {
-                matches = true;
-            }
-        }
-
-      return matches;
-    });
-  };
+  const { results, isLoading, selectedCategory, searchQuery } = props; // Destructure searchQuery here
 
   if (isLoading) {
     return (
@@ -296,15 +421,39 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
     );
   }
 
-  const filteredResults = filterResultsByCategory(results.results);
+  const filteredResults = filterResults(results.results, selectedCategory, searchQuery);
 
   if (filteredResults.length === 0) {
+    // Adjust message based on whether a search query is active
+    if (searchQuery) {
+         return (
+             <div className="text-center py-4">
+                 <p className="text-gray-600">No se encontraron resultados para la búsqueda "{searchQuery}" en la categoría seleccionada.</p>
+             </div>
+         );
+    } else if (selectedCategory && selectedCategory.toLowerCase() !== 'todo' && selectedCategory.toLowerCase() !== 'todos') {
+        return (
+          <div className="text-center py-4">
+            <p className="text-gray-600">No se encontraron resultados para la categoría seleccionada.</p>
+          </div>
+        );
+    } else {
+         return (
+             <div className="text-center py-4">
+                 <p className="text-gray-600">No se encontraron resultados que coincidan con la búsqueda.</p>
+             </div>
+         );
+    }
+  }
+
+  if (!results?.results || results.results.length === 0) {
     return (
       <div className="text-center py-4">
-        <p className="text-gray-600">No se encontraron resultados para la categoría seleccionada.</p>
+        <p className="text-gray-600">No se encontraron resultados.</p>
       </div>
     );
   }
+
 
   const formattedResults = filteredResults.map((result) => {
       // Es importante tener un ID único para la key.
@@ -941,7 +1090,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({
             break;
 
         default:
-          console.warn('No rendering template for resource type:', resourceKey, 'with data:', resourceData);
+          console.warn('No rendering template for resource type:', resourceKey, 'con datos:', resourceData);
           renderedContent = null;
       }
 

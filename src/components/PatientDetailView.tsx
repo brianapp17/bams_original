@@ -501,16 +501,16 @@ const PatientDetailView: React.FC = () => {
                 Agregar Recurso
               </button>
             </div>
-            {/* Main Card Area (Search + Records) */}
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
-              <div className="flex-shrink-0">
-                <SearchBar
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  handleSearch={handleSearchSubmit}
-                />
-              </div>
-              <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
+             {/* Main Card Area (Search + Records) */}
+        <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
+          <div className="flex-shrink-0">
+            <SearchBar
+              searchQuery={searchQuery} // Esto ya está bien
+              setSearchQuery={setSearchQuery} // Esto ya está bien
+              handleSearch={handleSearchSubmit} // Esto ya está bien
+            />
+          </div>
+          <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
                 Registros Médicos
               </h2>
               {/* Scrollable area for Medical Records content */}
@@ -522,7 +522,8 @@ const PatientDetailView: React.FC = () => {
                     <span className="block sm:inline">{recordsError}</span>
                   </div>
                 ) : medicalRecords?.results && medicalRecords.results.length > 0 ? (
-                  <MedicalRecords results={medicalRecords} isLoading={isLoadingRecords} selectedCategory={selectedCategory} />
+                  // ¡CAMBIO AQUÍ! Pasa el `searchQuery` real
+                  <MedicalRecords results={medicalRecords} isLoading={isLoadingRecords} selectedCategory={selectedCategory} searchQuery={searchQuery} />
                 ) : (
                   <div className="text-center text-gray-600">No se encontraron registros médicos para este paciente.</div>
                 )}
