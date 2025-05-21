@@ -1,22 +1,33 @@
 // Header.tsx
-import React, { useState, useEffect, useRef } from 'react'; // Añadido useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { TestTube2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import { fetchMarkdown } from '../api'; // Ajusta la ruta si es necesario
+import { fetchMarkdown } from '../api';
+
+// Firebase imports
+import { getAuth } from "firebase/auth";
+import { getDatabase, ref as dbRef, push, set } from "firebase/database";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { app } from '../firebase'; // Asegúrate de que tu instancia de app de Firebase esté exportada aquí
 
 interface HeaderProps {
   resetSearch: () => void;
   patientId: string | null;
-  resultsData: string | null; // fhirDataString es string | null
+  resultsData: string | null;
+  patientName: string | null; // Importante para la metadata del reporte
 }
 
-const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }): JSX.Element => {
+const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData, patientName }): JSX.Element => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [buttonText, setButtonText] = useState("Reporte AI");
-  const intervalIdRef = useRef<NodeJS.Timeout | undefined>(undefined); // Para manejar el intervalo
+  const intervalIdRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  const auth = getAuth(app);
+  const database = getDatabase(app);
+  const storage = getStorage(app);
 
   const loadingMessages = [
-    "Reporte AI", // Estado inicial o después de éxito/error
+    "Reporte AI",
     "Analizando historial...",
     "Leyendo expediente...",
     "Resumiendo datos médicos...",
@@ -30,8 +41,13 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
   ];
 
   const handleDownload = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Debes iniciar sesión para generar reportes.");
+      return;
+    }
     if (!patientId) {
-      alert("Por favor, selecciona un paciente antes de descargar.");
+      alert("Por favor, selecciona un paciente antes de generar el reporte.");
       return;
     }
     if (!resultsData) {
@@ -40,15 +56,13 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
     }
 
     setIsDownloading(true);
-    let currentLoadingIndex = 1; // Empezar con el primer mensaje de carga
+    let currentLoadingIndex = 1;
     setButtonText(loadingMessages[currentLoadingIndex]);
 
-    // Limpiar intervalo anterior si existe
     if (intervalIdRef.current) clearInterval(intervalIdRef.current);
-    
     intervalIdRef.current = setInterval(() => {
-      currentLoadingIndex = (currentLoadingIndex + 1) % (loadingMessages.length -1) ; // Ciclar solo mensajes de carga
-      if (currentLoadingIndex === 0) currentLoadingIndex = 1; // Saltar el mensaje inicial "Reporte AI"
+      currentLoadingIndex = (currentLoadingIndex + 1) % (loadingMessages.length - 1);
+      if (currentLoadingIndex === 0) currentLoadingIndex = 1;
       setButtonText(loadingMessages[currentLoadingIndex]);
     }, 2000);
 
@@ -57,27 +71,25 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
       const markdownResponse: string = await fetchMarkdown(patientId, resultsData);
       console.log("Received markdownResponse from API:", markdownResponse);
 
-      // Limpiar intervalo al recibir respuesta
       if (intervalIdRef.current) clearInterval(intervalIdRef.current);
 
-      const generatePdf = (markdownString: string) => {
+      const generatePdfBlob = (markdownString: string): Blob | null => {
         const pdf = new jsPDF({
-          orientation: 'p', // portrait
-          unit: 'mm', // milímetros
-          format: 'a4' // tamaño A4
+          orientation: 'p',
+          unit: 'mm',
+          format: 'a4'
         });
         const pageHeight = pdf.internal.pageSize.getHeight();
         const pageWidth = pdf.internal.pageSize.getWidth();
-        const margin = 15; // Margen de 15mm en todos los lados
+        const margin = 15;
         const maxLineWidth = pageWidth - (margin * 2);
-        let y = margin; // Posición Y inicial
-        const lineHeight = 7; // Altura de línea (ajustar según tamaño de fuente)
+        let y = margin;
+        const lineHeight = 7;
         const fontSize = 11;
 
         pdf.setFontSize(fontSize);
 
         try {
-          // Se espera que markdownString sea una cadena JSON que contiene una propiedad "response".
           const parsedContent = JSON.parse(markdownString);
           const reportText = parsedContent.response;
 
@@ -86,50 +98,81 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
             throw new Error('Formato de respuesta inesperado del servicio de reportes.');
           }
 
-          // Dividir el texto en líneas, manejando saltos de línea y ajuste de texto
           const lines = reportText.split('\n').reduce((acc: string[], paragraph: string) => {
-            // Usar splitTextToSize para el ajuste automático de línea según el ancho
             const paragraphLines = pdf.splitTextToSize(paragraph, maxLineWidth);
             return acc.concat(paragraphLines);
           }, []);
 
-
           lines.forEach((line: string) => {
-            if (y + lineHeight > pageHeight - margin) { // Si la línea excede la página
+            if (y + lineHeight > pageHeight - margin) {
               pdf.addPage();
-              y = margin; // Resetear Y a la posición inicial en la nueva página
+              y = margin;
             }
             pdf.text(line, margin, y);
             y += lineHeight;
           });
 
+          return pdf.output('blob');
+
         } catch (error) {
           console.error('Error parsing markdown or generating PDF content:', error);
           alert(`Hubo un error al procesar el contenido del reporte: ${error instanceof Error ? error.message : String(error)}`);
-          setButtonText("Error Procesando");
-          setTimeout(() => setButtonText(loadingMessages[0]), 3000);
-          return; // No intentar guardar
+          return null;
         }
-        pdf.save(`reporte-medico-${patientId}.pdf`);
       };
 
-      generatePdf(markdownResponse);
-      setButtonText("Reporte Descargado");
-      setTimeout(() => setButtonText(loadingMessages[0]), 3000);
+      const pdfBlob = generatePdfBlob(markdownResponse);
+
+      if (pdfBlob) {
+        // 1. Subir a Firebase Storage (ruta del Storage se mantiene igual, por doctor)
+        const doctorUid = user.uid;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `reporte-medico-${patientId}-${timestamp}.pdf`;
+        const storagePath = `doctor_reports/${doctorUid}/${fileName}`;
+        const pdfStorageRef = storageRef(storage, storagePath);
+
+        console.log("Uploading PDF to Storage:", storagePath);
+        const uploadResult = await uploadBytes(pdfStorageRef, pdfBlob);
+        const downloadURL = await getDownloadURL(uploadResult.ref);
+        console.log("PDF uploaded. Download URL:", downloadURL);
+
+        // 2. Guardar metadata en Firebase Realtime Database (¡CAMBIO CLAVE AQUÍ!)
+        // La referencia ahora es directamente bajo `medicalReports` del doctor
+        const medicalReportsRef = dbRef(database, `doctors/${doctorUid}/medicalReports`);
+        const newReportRef = push(medicalReportsRef); // Genera una key única para el reporte
+
+        const reportData = {
+          id: newReportRef.key,
+          patientId: patientId,
+          patientName: patientName || 'Paciente Desconocido', // Asegura que el nombre del paciente se guarde
+          fileName: fileName,
+          downloadURL: downloadURL,
+          timestamp: new Date().toISOString(),
+          reportDate: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+        };
+
+        await set(newReportRef, reportData);
+        console.log("Report metadata saved to Realtime Database:", reportData);
+
+        setButtonText("Reporte Guardado");
+        setTimeout(() => setButtonText(loadingMessages[0]), 3000);
+
+      } else {
+        throw new Error("No se pudo generar el PDF.");
+      }
 
     } catch (error) {
       if (intervalIdRef.current) clearInterval(intervalIdRef.current);
-      console.error('Error during report generation process:', error);
-      alert(`Error al generar el reporte: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Error during report generation/upload process:', error);
+      alert(`Error al generar o guardar el reporte: ${error instanceof Error ? error.message : String(error)}`);
       setButtonText("Error al Generar");
       setTimeout(() => setButtonText(loadingMessages[0]), 3000);
     } finally {
       setIsDownloading(false);
-      if (intervalIdRef.current) clearInterval(intervalIdRef.current); // Asegurar limpieza final
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
     }
   };
 
-  // Efecto para limpiar el intervalo si el componente se desmonta mientras se descarga
   useEffect(() => {
     return () => {
       if (intervalIdRef.current) {
@@ -137,7 +180,6 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
       }
     };
   }, []);
-
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -147,9 +189,7 @@ const Header: React.FC<HeaderProps> = ({ resetSearch, patientId, resultsData }):
       </div>
       {patientId && (
         <button
-          className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors duration-150 ${
-            isDownloading ? 'cursor-wait opacity-75' : 'hover:bg-teal-700'
-          }`}
+          className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors duration-150 ${isDownloading ? 'cursor-wait opacity-75' : 'hover:bg-teal-700'}`}
           onClick={handleDownload}
           disabled={isDownloading}
           style={{ backgroundColor: '#29a3ac' }}

@@ -228,3 +228,43 @@ export async function generateNoteFromAudio(audioBlob: Blob, patientId?: string)
   }
 }
 
+/**
+ * Placeholder function to fetch medical records for a patient.
+ * TODO: Implement the actual logic to fetch data from your backend.
+ * @param patientId The ID of the patient.
+ * @returns A promise that resolves to an object containing patient details and medical resources.
+ */
+export async function getPatientMedicalRecords(patientId: string) {
+  console.log(`Fetching medical records for patient ID: ${patientId}`);
+  // TODO: Replace with actual API call to fetch medical records
+  // This is a placeholder implementation
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({
+        patient: { 
+          id: patientId,
+          name: { given: ['Nombre'], family: 'Apellido' } 
+          // Add other patient details as needed
+        },
+        resources: [] // Return an empty array or mock data for now
+      });
+    }, 1000);
+  });
+}
+
+/**
+ * Placeholder function to fetch all medical reports.
+ * TODO: Implement the actual logic to fetch data from your backend.
+ * @returns A promise that resolves to an array of medical reports.
+ */
+export async function fetchAllMedicalReports() {
+  console.log("Fetching all medical reports (placeholder)");
+  // TODO: Replace with actual API call to fetch all reports
+  // This is a placeholder implementation
+  return new Promise(resolve => {
+    setTimeout(() => {
+      // Return an empty array or mock data for now
+      resolve({ reports: [] });
+    }, 1000);
+  });
+}

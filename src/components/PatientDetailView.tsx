@@ -5,8 +5,9 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, onValue, off, push, set } from "firebase/database";
 import { app } from '../firebase';
 // Import necessary types including PatientInfo and NotaConsultaItem which now includes NotasConsulta
-import type { Patient, ApiResponse, PatientInfo, ChatMessage, NotaConsultaItem } from '../types'; 
+import type { Patient, ApiResponse, PatientInfo, ChatMessage, NotaConsultaItem } from '../types';
 import { getCategoryLabel } from '../api';
+import { FileText } from 'lucide-react'; // Importamos el ícono para el botón
 
 // Components
 import PatientSidebar from './PatientSidebar';
@@ -56,7 +57,7 @@ const PatientDetailView: React.FC = () => {
   const auth = getAuth(app);
   const database = getDatabase(app);
 
-   // Function to fetch medical records from Firebase (Using the version with multiple listeners)
+  // Function to fetch medical records from Firebase (Using the version with multiple listeners)
   const fetchMedicalRecordsFromFirebase = useCallback((doctorUid: string, patientId: string) => {
     setIsLoadingRecords(true);
     setRecordsError(null);
@@ -79,12 +80,12 @@ const PatientDetailView: React.FC = () => {
     resourcePaths.forEach(path => dataAggregator[path] = []);
 
     const updateAndSetMedicalRecords = () => {
-        const combinedRecords: any[] = [];
-        Object.values(dataAggregator).forEach(recordsForPath => {
-            combinedRecords.push(...recordsForPath);
-        });
-        setMedicalRecords({ results: combinedRecords });
-        setIsLoadingRecords(false);
+      const combinedRecords: any[] = [];
+      Object.values(dataAggregator).forEach(recordsForPath => {
+        combinedRecords.push(...recordsForPath);
+      });
+      setMedicalRecords({ results: combinedRecords });
+      setIsLoadingRecords(false);
     };
 
     resourcePaths.forEach((path) => {
@@ -121,10 +122,10 @@ const PatientDetailView: React.FC = () => {
       }, (dbError: unknown) => {
         console.error(`Error fetching ${resourceType} data from Firebase:`, dbError);
         const errorMessage = (dbError instanceof Error) ? dbError.message : String(dbError);
-         setRecordsError(prevError =>
-             prevError ? `${prevError}\nError al cargar datos de ${resourceType.toLowerCase()}: ${errorMessage}`
-                       : `Error al cargar datos de ${resourceType.toLowerCase()}: ${errorMessage}`
-         );
+        setRecordsError(prevError =>
+            prevError ? `${prevError}\nError al cargar datos de ${resourceType.toLowerCase()}: ${errorMessage}`
+                      : `Error al cargar datos de ${resourceType.toLowerCase()}: ${errorMessage}`
+        );
         dataAggregator[path] = [];
         updateAndSetMedicalRecords();
       });
@@ -134,8 +135,8 @@ const PatientDetailView: React.FC = () => {
     return () => {
       unsubscribeFunctions.forEach(unsub => unsub());
     };
-  }, [database]);
 
+  }, [database]);
 
   // Effect to fetch patient data and set up medical records listeners
   useEffect(() => {
@@ -209,7 +210,6 @@ const PatientDetailView: React.FC = () => {
     };
   }, [auth, database, navigate, patientId, fetchMedicalRecordsFromFirebase]);
 
-
   // Function to save a new consultation note to Firebase (called by PatientSidebar)
   const handleSaveNewConsultationNote = async (noteContent: NotaConsultaItem): Promise<boolean> => {
     if (!patientId || !auth.currentUser) {
@@ -218,7 +218,7 @@ const PatientDetailView: React.FC = () => {
       return false;
     }
     const doctorUid = auth.currentUser.uid;
-    
+
     // CAMBIO CLAVE AQUÍ: Generar la fecha en formato ISO 8601 y quitar los milisegundos y el punto.
     // Esto lo hace válido para Firebase y mantiene la consistencia visual.
     const now = new Date();
@@ -227,7 +227,7 @@ const PatientDetailView: React.FC = () => {
     // Path to the patient's NotasConsulta node
     const newNotePath = `doctors/${doctorUid}/patients/${patientId}/NotasConsulta/${noteDateKey}`;
     const noteRefDB = ref(database, newNotePath);
-    
+
     console.log(`Attempting to save new note to Firebase at: ${newNotePath}`);
     console.log("Note content to save:", noteContent);
 
@@ -245,7 +245,6 @@ const PatientDetailView: React.FC = () => {
     }
   };
 
-
   // getCategories function
   const getCategories = useCallback(() => {
     if (!medicalRecords?.results) return [];
@@ -253,28 +252,28 @@ const PatientDetailView: React.FC = () => {
     medicalRecords.results.forEach(record => {
       const data = record.document.structData;
       const extractCategories = (resource: any, resourceTypeKey: string) => {
-          if (resource?.category) {
-              resource.category.forEach((cat: any) => {
-                  if (cat.text) categoriesMap.set(getCategoryLabel(cat.text), true);
-                  if (cat.coding) {
-                      cat.coding.forEach((code: any) => {
-                          if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
-                          else if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
-                      });
-                  }
+        if (resource?.category) {
+          resource.category.forEach((cat: any) => {
+            if (cat.text) categoriesMap.set(getCategoryLabel(cat.text), true);
+            if (cat.coding) {
+              cat.coding.forEach((code: any) => {
+                if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
+                else if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
               });
-          } else {
-               if (resourceTypeKey === 'Procedure') categoriesMap.set(getCategoryLabel('Procedure'), true);
-               else if (resourceTypeKey === 'Encounter') categoriesMap.set(getCategoryLabel('Encounter'), true);
-               else if ((resourceTypeKey === 'MedicationAdministration' || resourceTypeKey === 'MedicationAdministrationDuplicate') && resource?.medication) categoriesMap.set(getCategoryLabel('Medication'), true);
-               else if (resourceTypeKey === 'AllergyIntolerance' && resource?.code) categoriesMap.set(getCategoryLabel('Allergy'), true);
-               else if (resourceTypeKey === 'Immunization' && resource?.vaccineCode) categoriesMap.set(getCategoryLabel('Immunization'), true);
-               else if (resourceTypeKey === 'ClinicalImpression') categoriesMap.set(getCategoryLabel('ClinicalImpression'), true);
-               else if (resourceTypeKey === 'MedicationRequest' && resource?.medicationCodeableConcept) categoriesMap.set(getCategoryLabel('MedicationRequest'), true);
-               else if (resourceTypeKey === 'DiagnosticReport' && resource?.code) categoriesMap.set(getCategoryLabel('DiagnosticReport'), true);
-               else if (resourceTypeKey === 'ServiceRequest' && resource?.code) categoriesMap.set(getCategoryLabel('ServiceRequest'), true);
-               else if (resourceTypeKey === 'MedicationDispense' && resource?.medication) categoriesMap.set(getCategoryLabel('MedicationDispense'), true);
-           }
+            }
+          });
+        } else {
+          if (resourceTypeKey === 'Procedure') categoriesMap.set(getCategoryLabel('Procedure'), true);
+          else if (resourceTypeKey === 'Encounter') categoriesMap.set(getCategoryLabel('Encounter'), true);
+          else if ((resourceTypeKey === 'MedicationAdministration' || resourceTypeKey === 'MedicationAdministrationDuplicate') && resource?.medication) categoriesMap.set(getCategoryLabel('Medication'), true);
+          else if (resourceTypeKey === 'AllergyIntolerance' && resource?.code) categoriesMap.set(getCategoryLabel('Allergy'), true);
+          else if (resourceTypeKey === 'Immunization' && resource?.vaccineCode) categoriesMap.set(getCategoryLabel('Immunization'), true);
+          else if (resourceTypeKey === 'ClinicalImpression') categoriesMap.set(getCategoryLabel('ClinicalImpression'), true);
+          else if (resourceTypeKey === 'MedicationRequest' && resource?.medicationCodeableConcept) categoriesMap.set(getCategoryLabel('MedicationRequest'), true);
+          else if (resourceTypeKey === 'DiagnosticReport' && resource?.code) categoriesMap.set(getCategoryLabel('DiagnosticReport'), true);
+          else if (resourceTypeKey === 'ServiceRequest' && resource?.code) categoriesMap.set(getCategoryLabel('ServiceRequest'), true);
+          else if (resourceTypeKey === 'MedicationDispense' && resource?.medication) categoriesMap.set(getCategoryLabel('MedicationDispense'), true);
+        }
       };
       if (data.Observation) extractCategories(data.Observation, 'Observation');
       if (data.Condition) extractCategories(data.Condition, 'Condition');
@@ -317,7 +316,6 @@ const PatientDetailView: React.FC = () => {
     categories.sort();
     return categories;
   }, [medicalRecords, getCategoryLabel]);
-
 
   const fhirDataString = medicalRecords ? JSON.stringify(medicalRecords, null, 2) : null;
 
@@ -383,21 +381,21 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveMedicationAdministration = async (formData: any) => {
-      if (!patientId || !auth.currentUser) { console.error('Cannot save medication administration: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
-      const doctorUid = auth.currentUser.uid;
-      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`);
-      const newRef = push(dataRef);
-      const dataToSave = { id: newRef.key, resourceType: "MedicationAdministration", status: formData.status || "completed", medication: formData.medicationName ? { text: formData.medicationName } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, effectiveDateTime: formData.effectiveDateTime, dosage: (formData.dosageValue !== undefined || formData.dosageUnit !== undefined || formData.route !== undefined) ? { dose: (formData.dosageValue !== undefined && formData.dosageUnit !== undefined) ? { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit } : undefined, route: formData.route ? { text: formData.route } : undefined } : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
-      console.log('Saving MedicationAdministration:', dataToSave);
-      try { await set(newRef, dataToSave); console.log('MedicationAdministration saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save medication administration:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Administración de Medicamento: ${errorMessage}`); }
+    if (!patientId || !auth.currentUser) { console.error('Cannot save medication administration: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrations`);
+    const newRef = push(dataRef);
+    const dataToSave = { id: newRef.key, resourceType: "MedicationAdministration", status: formData.status || "completed", medication: formData.medicationName ? { text: formData.medicationName } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, effectiveDateTime: formData.effectiveDateTime, dosage: (formData.dosageValue !== undefined || formData.dosageUnit !== undefined || formData.route !== undefined) ? { dose: (formData.dosageValue !== undefined && formData.dosageUnit !== undefined) ? { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit } : undefined, route: formData.route ? { text: formData.route } : undefined } : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+    console.log('Saving MedicationAdministration:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('MedicationAdministration saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save medication administration:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Administración de Medicamento: ${errorMessage}`); }
   };
 
-   const handleSaveMedicationAdministrationDuplicate = async (formData: any) => {
-       if (!patientId || !auth.currentUser) { console.error('Cannot save duplicated medication administration: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
-      const doctorUid = auth.currentUser.uid;
-      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrationsDuplicate`);
-      const newRef = push(dataRef);
-        const dataToSave = { id: newRef.key, resourceType: "MedicationAdministrationDuplicate", status: formData.status || "completed", medication: formData.medicationName ? { text: formData.medicationName } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, effectiveDateTime: formData.effectiveDateTime, dosage: (formData.dosageValue !== undefined || formData.dosageUnit !== undefined || formData.route !== undefined) ? { dose: (formData.dosageValue !== undefined && formData.dosageUnit !== undefined) ? { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit } : undefined, route: formData.route ? { text: formData.route } : undefined } : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+  const handleSaveMedicationAdministrationDuplicate = async (formData: any) => {
+    if (!patientId || !auth.currentUser) { console.error('Cannot save duplicated medication administration: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationAdministrationsDuplicate`);
+    const newRef = push(dataRef);
+    const dataToSave = { id: newRef.key, resourceType: "MedicationAdministrationDuplicate", status: formData.status || "completed", medication: formData.medicationName ? { text: formData.medicationName } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, effectiveDateTime: formData.effectiveDateTime, dosage: (formData.dosageValue !== undefined || formData.dosageUnit !== undefined || formData.route !== undefined) ? { dose: (formData.dosageValue !== undefined && formData.dosageUnit !== undefined) ? { value: parseFloat(formData.dosageValue), unit: formData.dosageUnit } : undefined, route: formData.route ? { text: formData.route } : undefined } : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
     console.log('Saving Duplicated Medication Administration data:', dataToSave);
     try { await set(newRef, dataToSave); console.log('Duplicated Medication Administration saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save duplicated medication administration:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Administración de Medicamento (Duplicado): ${errorMessage}`); }
   };
@@ -423,26 +421,25 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveImmunization = async (formData: ImmunizationFormData) => {
-      if (!patientId || !auth.currentUser) { console.error('Cannot save immunization: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
-      const doctorUid = auth.currentUser.uid;
-      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/immunizations`);
-      const newRef = push(dataRef);
-      const dataToSave = { id: newRef.key, resourceType: "Immunization", status: formData.status, vaccineCode: formData.vaccineCode ? { coding: [{ display: formData.vaccineCode }] } : undefined, patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, occurrenceDateTime: formData.occurrenceDateTime, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
-      console.log('Saving Immunization:', dataToSave);
-      try { await set(newRef, dataToSave); console.log('Immunization saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save immunization:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Inmunización: ${errorMessage}`); }
+    if (!patientId || !auth.currentUser) { console.error('Cannot save immunization: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/immunizations`);
+    const newRef = push(dataRef);
+    const dataToSave = { id: newRef.key, resourceType: "Immunization", status: formData.status, vaccineCode: formData.vaccineCode ? { coding: [{ display: formData.vaccineCode }] } : undefined, patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, occurrenceDateTime: formData.occurrenceDateTime, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+    console.log('Saving Immunization:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Immunization saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save immunization:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Inmunización: ${errorMessage}`); }
   };
 
   const handleSaveMedicationRequest = async (formData: MedicationRequestFormData) => {
-      if (!patientId || !auth.currentUser) { console.error('Cannot save medication request: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
-      const doctorUid = auth.currentUser.uid;
-      const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationRequests`);
-      const newRef = push(dataRef);
-      const dataToSave = { id: newRef.key, resourceType: "MedicationRequest", status: formData.status, intent: formData.intent, medicationCodeableConcept: formData.medicationName ? { coding: [{ display: formData.medicationName }] } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, authoredOn: formData.authoredOn, dosageInstruction: formData.dosageInstructionText ? [{ text: formData.dosageInstructionText, route: formData.routeText ? { coding: [{ display: formData.routeText }] } : undefined }] : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
-      console.log('Saving MedicationRequest:', dataToSave);
-      try { await set(newRef, dataToSave); console.log('Medication Request saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save medication request:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Solicitud de Medicamento: ${errorMessage}`); }
+    if (!patientId || !auth.currentUser) { console.error('Cannot save medication request: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    const doctorUid = auth.currentUser.uid;
+    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/medicationRequests`);
+    const newRef = push(dataRef);
+    const dataToSave = { id: newRef.key, resourceType: "MedicationRequest", status: formData.status, intent: formData.intent, medicationCodeableConcept: formData.medicationName ? { coding: [{ display: formData.medicationName }] } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, authoredOn: formData.authoredOn, dosageInstruction: formData.dosageInstructionText ? [{ text: formData.dosageInstructionText, route: formData.routeText ? { coding: [{ display: formData.routeText }] } : undefined }] : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+    console.log('Saving MedicationRequest:', dataToSave);
+    try { await set(newRef, dataToSave); console.log('Medication Request saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save medication request:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Solicitud de Medicamento: ${errorMessage}`); }
   };
   // --- End handleSave functions ---
-
 
   if (patientId && isLoadingPatient) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando expediente...</p></div>;
@@ -455,29 +452,34 @@ const PatientDetailView: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Seleccione un Paciente</h1>
           <p className="text-gray-600 mb-6">Navegue a la lista de expedientes para seleccionar un paciente o inicie una nueva consulta.</p>
           <Link to="/expedientes" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 mr-4">Ver Expedientes</Link>
-          <Link to="/nueva-consulta" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Nueva Consulta</Link>
+          <Link to="/new-consultation" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Nueva Consulta</Link>
         </div>
       </div>
     );
   }
 
   // Check if patientInfo exists before rendering dependent components like PatientSidebar
-  if (patient && patientId && !isLoadingPatient && !patientError && patientInfo) { 
+  if (patient && patientId && !isLoadingPatient && !patientError && patientInfo) {
     console.log("PatientInfo being passed to Sidebar (should have NotasConsulta):", patientInfo);
+    // Derive patientName here for the Header prop
+    const currentPatientName = patientInfo?.name || (patient?.name?.[0]?.given?.join(' ') + ' ' + patient?.name?.[0]?.family) || null;
+
     return (
       <div className="h-screen bg-gray-50 flex flex-col">
         {/* Pass fhirDataString to Header for PDF generation */}
-        <Header 
-          resetSearch={() => {}} 
-          patientId={patientId} 
-          resultsData={fhirDataString} 
+        {/* Pasa patientName al Header */}
+        <Header
+          resetSearch={() => {}}
+          patientId={patientId}
+          resultsData={fhirDataString}
+          patientName={currentPatientName}
         />
 
         {/* Main layout with three columns */}
         <div className="flex flex-1 p-4 gap-4 items-stretch overflow-hidden">
-          
+
           {/* Left Sidebar (Patient Info, Categories, Notes AI) */}
-          <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col"> 
+          <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col">
             <PatientSidebar
               patientInfo={patientInfo} // patientInfo now includes NotasConsulta
               categories={getCategories()}
@@ -489,7 +491,7 @@ const PatientDetailView: React.FC = () => {
           </div>
 
           {/* Center Content Area (Search, Medical Records) */}
-          <div className="flex-1 flex flex-col min-w-0"> 
+          <div className="flex-1 flex flex-col min-w-0">
             <div className="mb-4 flex space-x-4 flex-shrink-0 p-2">
               <Link to="/expedientes" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
                 <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -503,17 +505,22 @@ const PatientDetailView: React.FC = () => {
               >
                 Agregar Recurso
               </button>
+              {/* ¡NUEVO! Botón para ir a ver todos los reportes */}
+              <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                <FileText className="w-5 h-5 mr-2" />
+                Ver Mis Reportes AI
+              </Link>
             </div>
-             {/* Main Card Area (Search + Records) */}
-        <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
-          <div className="flex-shrink-0">
-            <SearchBar
-              searchQuery={searchQuery} // Esto ya está bien
-              setSearchQuery={setSearchQuery} // Esto ya está bien
-              handleSearch={handleSearchSubmit} // Esto ya está bien
-            />
-          </div>
-          <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
+            {/* Main Card Area (Search + Records) */}
+            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
+              <div className="flex-shrink-0">
+                <SearchBar
+                  searchQuery={searchQuery} // Esto ya está bien
+                  setSearchQuery={setSearchQuery} // Esto ya está bien
+                  handleSearch={handleSearchSubmit} // Esto ya está bien
+                />
+              </div>
+              <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
                 Registros Médicos
               </h2>
               {/* Scrollable area for Medical Records content */}
@@ -535,7 +542,7 @@ const PatientDetailView: React.FC = () => {
           </div>
 
           {/* Right Sidebar (Chat) */}
-          <div className="w-96 border-l border-gray-200 flex flex-col"> 
+          <div className="w-96 border-l border-gray-200 flex flex-col">
             <ChatSidebar
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
@@ -567,20 +574,19 @@ const PatientDetailView: React.FC = () => {
 
   // Render loading or error states before patient data is ready
   if (patientError) {
-      return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-red-500">Error al cargar el expediente: {patientError}</p></div>;
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-red-500">Error al cargar el expediente: {patientError}</p></div>;
   }
-  
+
   // Default loading state if patientId is present but data is still loading
   if (patientId && isLoadingPatient) {
-       return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando expediente...</p></div>;
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando expediente...</p></div>;
   }
 
-   // Fallback if patientId is present but patientData is null (e.g., not found) and not loading/error state is specific
-   // This should ideally be caught by the specific patientError check above, but included as a safeguard.
-   if (patientId && !isLoadingPatient && !patient) {
-        return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-red-500">Paciente no encontrado.</p></div>;
-   }
-
+  // Fallback if patientId is present but patientData is null (e.g., not found) and not loading/error state is specific
+  // This should ideally be caught by the specific patientError check above, but included as a safeguard.
+  if (patientId && !isLoadingPatient && !patient) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-red-500">Paciente no encontrado.</p></div>;
+  }
 
   // Render nothing or a generic loading/selection message if patientId is null initially
   return null; // The JSX block above handles the case where patientId is null initially
