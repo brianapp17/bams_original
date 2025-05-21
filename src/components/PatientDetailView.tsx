@@ -218,8 +218,11 @@ const PatientDetailView: React.FC = () => {
       return false;
     }
     const doctorUid = auth.currentUser.uid;
-    // Use ISO string as the key for uniqueness and order
-    const noteDateKey = new Date().toISOString(); 
+    
+    // CAMBIO CLAVE AQUÍ: Generar la fecha en formato ISO 8601 y quitar los milisegundos y el punto.
+    // Esto lo hace válido para Firebase y mantiene la consistencia visual.
+    const now = new Date();
+    const noteDateKey = now.toISOString().split('.')[0] + 'Z'; // "YYYY-MM-DDTHH:mm:ssZ"
 
     // Path to the patient's NotasConsulta node
     const newNotePath = `doctors/${doctorUid}/patients/${patientId}/NotasConsulta/${noteDateKey}`;
