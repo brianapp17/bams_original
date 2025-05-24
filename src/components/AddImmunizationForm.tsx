@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 
 export interface ImmunizationFormData {
-  noteText: any;
   vaccineCode: string;
   occurrenceDateTime: string;
   status: 'completed' | 'entered-in-error' | 'not-done';
+  noteText: string; // Aseguramos que sea string
 }
 
 interface AddImmunizationFormProps {
@@ -18,9 +18,10 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
     vaccineCode: '',
     occurrenceDateTime: '',
     status: 'completed',
+    noteText: '', // <-- ¡CORRECCIÓN 1: Inicializa noteText aquí!
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { // <-- Añadimos HTMLTextAreaElement aquí
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -86,6 +87,21 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
                 <option value="not-done">No Realizado</option>
               </select>
             </div>
+            {/* <-- ¡CORRECCIÓN 2: Añade este campo de nota al JSX! --> */}
+            <div>
+              <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">
+                Nota del Doctor (Opcional)
+              </label>
+              <textarea
+                name="noteText"
+                id="noteText"
+                value={formData.noteText}
+                onChange={handleChange}
+                rows={2} // Puedes ajustar el número de filas
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              ></textarea>
+            </div>
+            {/* <-- Fin de la Corrección 2 --> */}
           </div>
           <div className="mt-6 flex justify-end space-x-3">
             <button

@@ -1,3 +1,4 @@
+// src/components/AddObservationForm.tsx
 import React, { useState } from 'react';
 
 interface AddObservationFormProps {
@@ -5,13 +6,15 @@ interface AddObservationFormProps {
   onCancel: () => void;
 }
 
-interface ObservationFormData {
+// --- AÑADE 'export' AQUÍ ---
+export interface ObservationFormData {
   codeText: string;
   value: string;
   unit: string;
   effectiveDateTime: string;
-  noteText: string;
+  noteText: string; // Para la nota, asegúrate que el handler la use con esta clave
 }
+// --- FIN DE LA CORRECCIÓN ---
 
 const AddObservationForm: React.FC<AddObservationFormProps> = ({ onSave, onCancel }) => {
   const [formData, setFormData] = useState<ObservationFormData>({
@@ -32,6 +35,10 @@ const AddObservationForm: React.FC<AddObservationFormProps> = ({ onSave, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.codeText || !formData.value || !formData.unit || !formData.effectiveDateTime) {
+        alert('Por favor, complete Código, Valor Medido, Unidad y Fecha de Observación.');
+        return;
+    }
     onSave(formData);
   };
 
@@ -91,7 +98,7 @@ const AddObservationForm: React.FC<AddObservationFormProps> = ({ onSave, onCance
           <div>
             <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">Nota del Doctor (Opcional)</label>
             <textarea
-              name="noteText"
+              name="noteText" // Esta es la clave que usaremos en el handler
               id="noteText"
               rows={3}
               value={formData.noteText}

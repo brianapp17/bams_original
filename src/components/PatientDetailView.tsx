@@ -17,7 +17,7 @@ import SearchBar from './SearchBar';
 import MedicalRecords from './MedicalRecords';
 import AddResourceMenu from './AddResourceMenu';
 // Import all the form components
-import AddObservationForm from './AddObservationForm';
+import AddObservationForm, { ObservationFormData } from './AddObservationForm';
 import AddConditionForm from './AddConditionForm';
 import AddEncounterForm from './AddEncounterForm';
 import AddProcedureForm from './AddProcedureForm';
@@ -339,16 +339,108 @@ const PatientDetailView: React.FC = () => {
     setShowAddResourceMenu(false);
   };
 
-  // --- handleSave functions for forms ---
-  const handleSaveObservation = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Error saving Observation: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
-    const doctorUid = auth.currentUser.uid;
-    const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
-    const newRef = push(dataRef);
-    const dataToSave = { id: newRef.key, resourceType: "Observation", status: formData.status || "final", category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs", display: "Vital Signs" }], text: "Observación" }], code: formData.codeText ? { text: formData.codeText } : undefined, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, effectiveDateTime: formData.effectiveDateTime, valueQuantity: (formData.value !== undefined && formData.unit !== undefined) ? { value: parseFloat(formData.value), unit: formData.unit } : undefined, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
-    console.log('Saving Observation:', dataToSave);
-    try { await set(newRef, dataToSave); console.log('Observation saved successfully.'); handleCancelAddResource(); } catch (e: unknown) { console.error('Failed to save Observation:', e); const errorMessage = (e instanceof Error) ? e.message : String(e); alert(`Error al guardar la Observación: ${errorMessage}`); }
+ // En PatientDetailView.tsx
+ const handleSaveObservation = async (formData: ObservationFormData) => {
+  if (!patientId || !auth.currentUser) {
+      console.error('Error saving Observation: patientId or authenticated user is not defined.');
+      alert('Error: Paciente o usuario no definido.');
+      return;
+  }
+  const doctorUid = auth.currentUser.uid;
+  const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/observations`);
+  const newRef = push(dataRef);
+
+  // Convertir la fecha y hora local a formato ISO 8601 si es necesario
+  // El input type="datetime-local" devuelve un string como "YYYY-MM-DDTHH:MM"
+  // Firebase espera "YYYY-MM-DDTHH:MM:SS.sssZ" o un objeto Date de JS que se convertirá.
+  // Si formData.effectiveDateTime es un string "YYYY-MM-DDTHH:MM", podemos añadir los segundos y la 'Z'
+  let effectiveDateISO: string | undefined;
+  if (formData.effectiveDateTime) {
+      try {
+          // Si ya es un formato ISO completo con Z, usarlo. Sino, intentar parsear.
+          if (formData.effectiveDateTime.endsWith('Z')) {
+              effectiveDateISO = formData.effectiveDateTime;
+          } else {
+              // Asumimos que es "YYYY-MM-DDTHH:MM" del input datetime-local
+              const dateObj = new Date(formData.effectiveDateTime);
+              if (!isNaN(dateObj.getTime())) { // Verifica si la fecha es válida
+                  effectiveDateISO = dateObj.toISOString();
+              }
+          }
+      } catch (e) {
+          console.error("Error al parsear effectiveDateTime:", e);
+      }
+  }
+
+  if (!effectiveDateISO) {
+      console.error('Error saving Observation: effectiveDateTime is not valid or could not be parsed. Original:', formData.effectiveDateTime);
+      alert('Error: La fecha de observación no es válida o no se pudo procesar.');
+      return;
+  }
+
+  const dataToSave: { [key: string]: any } = {
+      id: newRef.key,
+      resourceType: "Observation",
+      status: "final", // O tomar de formData.status si tuvieras un campo para ello
+      category: [{
+          coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs", display: "Vital Signs" }], // Podría ser dinámico según el tipo de observación
+          text: "Observación" // O tomar de formData.categoryText si tuvieras un campo para ello
+      }],
+      code: formData.codeText ? { text: formData.codeText.trim() } : undefined,
+      subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+      effectiveDateTime: effectiveDateISO,
+      // Usar formData.noteText que es la clave del formulario
+      note: [{ text: formData.noteText || '' }]
   };
+
+  // --- Lógica Detallada y Corregida para valueQuantity ---
+  console.log("[handleSaveObservation] FormData recibida:", JSON.stringify(formData));
+  console.log("[handleSaveObservation] Procesando: Valor:", JSON.stringify(formData.value), "- Unidad:", JSON.stringify(formData.unit));
+
+  const hasValue = typeof formData.value === 'string' && formData.value.trim() !== '';
+  const hasUnit = typeof formData.unit === 'string' && formData.unit.trim() !== '';
+
+  if (hasValue && hasUnit) {
+    const trimmedValueStr = formData.value.replace(/\s/g, '').trim();
+      const trimmedUnitStr = formData.unit.trim(); // También hacer trim a la unidad
+      const numericValue = Number(trimmedValueStr); // Usar Number()
+
+      console.log(`[handleSaveObservation] Intentando procesar valor parseado: ${numericValue} (de "${trimmedValueStr}"), Unidad: "${trimmedUnitStr}"`);
+
+      if (!isNaN(numericValue)) {
+          dataToSave.valueQuantity = { value: numericValue, unit: trimmedUnitStr };
+          console.log("[handleSaveObservation] valueQuantity añadido:", dataToSave.valueQuantity);
+      } else {
+          console.warn(`[handleSaveObservation] El valor medido "${trimmedValueStr}" no es un número válido. No se guardará valueQuantity.`);
+          // Opcional: Guardar como valueString si no es numérico pero quieres conservarlo
+          // dataToSave.valueString = trimmedValueStr;
+          // console.log("[handleSaveObservation] Guardando como valueString:", dataToSave.valueString);
+      }
+  } else {
+      if (!hasValue) {
+          console.warn("[handleSaveObservation] No se proporcionó 'Valor Medido' o está vacío. No se guardará valueQuantity.");
+      }
+      if (!hasUnit && hasValue) { // Solo advertir si hay valor pero no unidad
+          console.warn("[handleSaveObservation] No se proporcionó 'Unidad' o está vacía, pero sí un valor. No se guardará valueQuantity.");
+      }
+      // Si ambos están vacíos, está bien no guardar valueQuantity.
+  }
+  // --- Fin Lógica Detallada para valueQuantity ---
+
+  console.log('[handleSaveObservation] Objeto final a guardar (dataToSave):', JSON.stringify(dataToSave, null, 2));
+
+  try {
+      await set(newRef, dataToSave);
+      console.log('Observation saved successfully.');
+      handleCancelAddResource();
+  } catch (e: unknown) {
+      console.error('Failed to save Observation:', e);
+      const errorMessage = (e instanceof Error) ? e.message : String(e);
+      alert(`Error al guardar la Observación: ${errorMessage}`);
+  }
+};
+
+// ... (resto del código) ...
 
   const handleSaveCondition = async (formData: any) => {
     if (!patientId || !auth.currentUser) { console.error('Error saving Condition: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
@@ -401,13 +493,46 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveAllergyIntolerance = async (formData: any) => {
-    if (!patientId || !auth.currentUser) { console.error('Cannot save allergy/intolerance: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    if (!patientId || !auth.currentUser) {
+      console.error('Cannot save allergy/intolerance: patientId or authenticated user is not defined.');
+      alert('Error: Paciente o usuario no definido.');
+      return;
+    }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/allergyIntolerances`);
     const newRef = push(dataRef);
-    const dataToSave = { id: newRef.key, resourceType: "AllergyIntolerance", clinicalStatus: formData.clinicalStatus ? { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: formData.clinicalStatus }] } : undefined, verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification", code: "confirmed" }] }, type: "allergy", code: formData.substance ? { coding: [{ display: formData.substance }] } : undefined, patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, recordedDate: formData.recordedDate || new Date().toISOString(), note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+  
+    // Corregir la construcción del objeto dataToSave
+    const dataToSave = {
+      id: newRef.key,
+      resourceType: "AllergyIntolerance",
+      // clinicalStatus y code están bien mapeados usando la clave correcta 'clinicalStatus' y 'substance' del formulario
+      clinicalStatus: formData.clinicalStatus ? { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: formData.clinicalStatus }] } : undefined,
+      verificationStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification", code: "confirmed" }] }, // Confirmado por defecto
+      type: "allergy", // Alergia por defecto (podrías añadir un campo si necesitas Intolerancia)
+      code: formData.substance ? { coding: [{ display: formData.substance }], text: formData.substance } : undefined, // Añadimos text por si acaso
+      patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+      // recordedDate no está en el formulario, usar fecha actual
+      recordedDate: new Date().toISOString(),
+  
+      // *** FIX PRINCIPAL AQUÍ: ***
+      // 1. Usar formData.note (clave correcta del formulario)
+      // 2. Asegurar que el valor sea [{ text: "..." }] incluso si formData.note es ""
+      note: [{ text: formData.note }] // Esto crea [{ text: "" }] si el campo de notas está vacío, lo cual es válido en Firebase.
+      // *** FIN FIX ***
+    };
+  
     console.log('Saving AllergyIntolerance:', dataToSave);
-    try { await set(newRef, dataToSave); console.log('Allergy/Intolerance saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save allergy/intolerance:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Alergia/Intolerancia: ${errorMessage}`); }
+  
+    try {
+      await set(newRef, dataToSave);
+      console.log('Allergy/Intolerance saved successfully.');
+      handleCancelAddResource(); // Cerrar el formulario después de guardar
+    } catch (error: unknown) {
+      console.error('Failed to save allergy/intolerance:', error);
+      const errorMessage = (error instanceof Error) ? error.message : String(error);
+      alert(`Error al guardar la Alergia/Intolerancia: ${errorMessage}`);
+    }
   };
 
   const handleSaveClinicalImpression = async (formData: ClinicalImpressionFormData) => {
@@ -421,13 +546,37 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveImmunization = async (formData: ImmunizationFormData) => {
-    if (!patientId || !auth.currentUser) { console.error('Cannot save immunization: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    if (!patientId || !auth.currentUser) {
+      console.error('Cannot save immunization: patientId or authenticated user is not defined.');
+      alert('Error: Paciente o usuario no definido.');
+      return;
+    }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/immunizations`);
     const newRef = push(dataRef);
-    const dataToSave = { id: newRef.key, resourceType: "Immunization", status: formData.status, vaccineCode: formData.vaccineCode ? { coding: [{ display: formData.vaccineCode }] } : undefined, patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, occurrenceDateTime: formData.occurrenceDateTime, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+
+    const dataToSave = {
+      id: newRef.key,
+      resourceType: "Immunization",
+      status: formData.status,
+      vaccineCode: formData.vaccineCode ? { coding: [{ display: formData.vaccineCode }] } : undefined,
+      patient: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+      occurrenceDateTime: formData.occurrenceDateTime,
+      // *** LÍNEA CORREGIDA AQUÍ ***
+      note: [{ text: formData.noteText || '' }] // Asegura que 'note' siempre sea un array con un objeto de texto (vacío si no hay nota)
+      // *** FIN LÍNEA CORREGIDA ***
+    };
+
     console.log('Saving Immunization:', dataToSave);
-    try { await set(newRef, dataToSave); console.log('Immunization saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save immunization:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Inmunización: ${errorMessage}`); }
+    try {
+      await set(newRef, dataToSave);
+      console.log('Immunization saved successfully.');
+      handleCancelAddResource(); // Asumimos que quieres cerrar el formulario al guardar con éxito
+    } catch (error: unknown) {
+      console.error('Failed to save immunization:', error);
+      const errorMessage = (error instanceof Error) ? error.message : String(error);
+      alert(`Error al guardar la Inmunización: ${errorMessage}`);
+    }
   };
 
   const handleSaveMedicationRequest = async (formData: MedicationRequestFormData) => {
