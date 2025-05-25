@@ -548,12 +548,37 @@ const DashboardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-teal-600 mb-5 text-center">Funcionalidades Destacadas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              {[
-                { title: "Historial Clínico Completo", description: "Visualización e interpretación instantánea de datos y resultados, todo en un solo lugar.", partner: "Asociacion A" },
-                { title: "Chat con Asistente BAMS", description: "Obtén respuestas médicas a consultas basadas en síntomas y antecedentes del paciente.", partner: "Asociacion B" },
-                { title: "Reportes Automáticos Inteligentes", description: "Generación en PDF de resúmenes clínicos generados por IA, listos para compartir.", partner: "Asociacion C" },
-                { title: "Dictado Médico Inteligente", description: "Crea notas médicas mediante grabaciones de audio analizadas por IA.", partner: "Asociacion D" },
-                { title: "Análisis Bioquímico Inteligente", description: "Interpreta exámenes de laboratorio con contexto histórico de cada paciente.", partner: "Asociacion E" },
-                { title: "Asistente IA Guía", description: "En la esquina inferior derecha encontrarás un chat para resolver dudas sobre la plataforma.", partner: null }
+             { 
+              title: "Historial Clínico Inteligente", 
+              description: "Explora una revolución en el seguimiento médico. Nuestra IA reconstruye y comprende el historial clínico de cada paciente, interpretando datos de forma contextual y precisa para ofrecer una vista 360° jamás antes lograda en la medicina digital.",
+              partner: "Asociación A" 
+            },
+            { 
+              title: "Diagnóstico del Futuro con BAMS", 
+              description: "Bienvenido a la era del diagnóstico inteligente. BAMS no es solo un asistente, es una IA médica que anticipa complicaciones, propone diagnósticos diferenciales con precisión quirúrgica y recomienda tratamientos personalizados en tiempo real. Tu nuevo copiloto clínico ha llegado.",
+              partner: "Asociación B" 
+            },
+            { 
+              title: "Reportes Médicos Autogenerados", 
+              description: "La documentación médica evoluciona. Esta IA transforma grandes volúmenes de datos clínicos en reportes claros, comprensibles y listos para compartir, todo en cuestión de segundos.",
+              partner: "Asociación C" 
+            },
+            { 
+              title: "Notas Médicas por Voz con IA", 
+              description: "Simplemente habla. Nuestra IA especializada en lenguaje médico convierte tu voz en notas clínicas estructuradas, destacando la información más relevante automáticamente. Ahorra tiempo y aumenta la precisión sin mover un dedo.",
+              partner: "Asociación D" 
+            },
+            { 
+              title: "Exámenes de Laboratorio con Análisis Predictivo", 
+              description: "No más interpretación manual. Esta IA cruza resultados bioquímicos con todo el historial del paciente, detectando patrones ocultos, anomalías emergentes y riesgos invisibles para actuar antes de que sea demasiado tarde.",
+              partner: "Asociación E" 
+            },
+            { 
+              title: "Asistente IA de Plataforma", 
+              description: "Una guía proactiva en cada clic. Nuestro asistente IA integrado te acompaña desde la esquina inferior derecha para resolver dudas, enseñarte funciones y adaptarse a tu forma de trabajar. Es más que soporte, es un copiloto digital.",
+              partner: null 
+            }
+            
             ].map((feature, index) => (
                  <div key={index} className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                     <h3 className="text-xl font-semibold text-teal-700 mb-2">{feature.title}</h3>
