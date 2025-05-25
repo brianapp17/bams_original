@@ -148,7 +148,7 @@ const NewConsultationPage: React.FC = () => {
   });
 
   const handlePatientSelect = (patientId: string) => {
-      navigate(`/?patientId=${patientId}`);
+      navigate(`/expedientes/${patientId}`);
   }
 
   // Render a loading state or nothing while initial auth check is happening

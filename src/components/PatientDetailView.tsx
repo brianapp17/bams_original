@@ -536,14 +536,38 @@ const PatientDetailView: React.FC = () => {
   };
 
   const handleSaveClinicalImpression = async (formData: ClinicalImpressionFormData) => {
-    if (!patientId || !auth.currentUser) { console.error('Cannot save clinical impression: patientId or authenticated user is not defined.'); alert('Error: Paciente o usuario no definido.'); return; }
+    if (!patientId || !auth.currentUser) {
+        console.error('Cannot save clinical impression: patientId or authenticated user is not defined.');
+        alert('Error: Paciente o usuario no definido.');
+        return;
+    }
     const doctorUid = auth.currentUser.uid;
     const dataRef = ref(database, `doctors/${doctorUid}/patients/${patientId}/clinicalImpressions`);
     const newRef = push(dataRef);
-    const dataToSave = { id: newRef.key, resourceType: "ClinicalImpression", date: formData.date || new Date().toISOString(), description: formData.description || "", status: formData.status, subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' }, note: formData.noteText ? [{ text: formData.noteText }] : undefined };
+
+    const dataToSave = {
+        id: newRef.key,
+        resourceType: "ClinicalImpression",
+        date: formData.date || new Date().toISOString(), // Toma la fecha del form o la actual
+        description: formData.description || "",         // Toma la descripción del form
+        status: formData.status,                         // Toma el estado del form
+        subject: { reference: `Patient/${patientId}`, display: patientInfo?.name || 'Paciente Desconocido' },
+        // *** LÍNEA CORREGIDA AQUÍ ***
+        note: [{ text: formData.noteText || '' }] // Asegura que 'note' sea siempre un array con un objeto de texto (vacío si no hay nota)
+        // *** FIN LÍNEA CORREGIDA ***
+    };
+
     console.log('Saving ClinicalImpression:', dataToSave);
-    try { await set(newRef, dataToSave); console.log('Clinical Impression saved successfully.'); handleCancelAddResource(); } catch (error: unknown) { console.error('Failed to save clinical impression:', error); const errorMessage = (error instanceof Error) ? error.message : String(error); alert(`Error al guardar la Impresión Clínica: ${errorMessage}`); }
-  };
+    try {
+        await set(newRef, dataToSave);
+        console.log('Clinical Impression saved successfully.');
+        handleCancelAddResource();
+    } catch (error: unknown) {
+        console.error('Failed to save clinical impression:', error);
+        const errorMessage = (error instanceof Error) ? error.message : String(error);
+        alert(`Error al guardar la Impresión Clínica: ${errorMessage}`);
+    }
+};
 
   const handleSaveImmunization = async (formData: ImmunizationFormData) => {
     if (!patientId || !auth.currentUser) {
