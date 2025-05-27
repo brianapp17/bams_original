@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+// getAuth is used directly in LoginPage.tsx, no need to export it here
+// import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAUo6DmIeAcoyDMhTqIwS6we0tne5yg9g",
