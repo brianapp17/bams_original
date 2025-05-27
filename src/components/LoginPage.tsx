@@ -3,12 +3,11 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider, // Keep this import for GoogleAuthProvider.credential()
+  GoogleAuthProvider,
   signInWithCredential,
   UserCredential,
 } from "firebase/auth";
-// REMOVE this import: import { GoogleCredential } from "firebase/auth"; // Import is not needed for GoogleAuthProvider.credential()
-import { getDatabase, ref, set, get } from "firebase/database";
+import { getDatabase, ref, set, get, DataSnapshot } from "firebase/database"; // Import DataSnapshot
 import { app } from '../firebase'; // Assuming firebase.ts exports 'app'
 import { useNavigate } from 'react-router-dom';
 
@@ -34,128 +33,139 @@ const LoginPage: React.FC = () => {
   const database = getDatabase(app);
   const navigate = useNavigate();
 
+  // Helper function to fetch user role from database
+  const fetchUserRole = async (uid: string): Promise<string | null> => {
+    try {
+      const userRef = ref(database, `users/${uid}/role`);
+      const snapshot: DataSnapshot = await get(userRef);
+      if (snapshot.exists()) {
+        return snapshot.val();
+      } else {
+        console.warn(`Role not found for user: ${uid}`);
+        return null; // Or a default role like 'doctor'
+      }
+    } catch (dbError) {
+      console.error(`Error fetching user role for ${uid}:`, dbError);
+      setError(`Error al obtener el rol del usuario: ${(dbError as Error).message}`);
+      return null;
+    }
+  };
+
+  // Function to handle redirection based on role
+  const redirectToDashboard = async (uid: string) => {
+      const role = await fetchUserRole(uid);
+      if (role === 'superadmin') {
+          console.log('Redirecting to admin dashboard');
+          navigate('/admin-dashboard');
+      } else {
+          console.log('Redirecting to doctor dashboard');
+          navigate('/dashboard');
+      }
+  };
+
   // Function to handle the Google Identity Services credential response
   // This is called by the GSI script after the user selects an account
   const handleCredentialResponse = async (response: any) => {
     // isLoading is set to true when the Google button is clicked/prompted
     setError(null);
     setSuccess(null);
-    console.log("Step 1: Google credential response received:", response); // ADDED LOG
+    console.log("Step 1: Google credential response received:", response);
 
     if (response.credential) {
       try {
-        // Build Firebase credential from Google ID token received in response.credential
-        // FIX: Use GoogleAuthProvider.credential()
         const credential = GoogleAuthProvider.credential(response.credential);
-        console.log("Step 2: Firebase credential created."); // ADDED LOG
+        console.log("Step 2: Firebase credential created.");
 
-        // Sign in to Firebase with the Google credential
-        console.log("Step 3: Signing in to Firebase with credential..."); // ADDED LOG
+        console.log("Step 3: Signing in to Firebase with credential...");
         const result: UserCredential = await signInWithCredential(auth, credential);
         const user = result.user;
         const uid = user.uid;
-        console.log("Step 4: Firebase sign-in successful.", user); // ADDED LOG
-        console.log("Step 4: User UID:", uid); // Log the UID to check in Firebase console
+        console.log("Step 4: Firebase sign-in successful.", user);
+        console.log("Step 4: User UID:", uid);
 
         // --- Logic to check/save user data in the Realtime Database ---
-        // This runs *after* successful Firebase Auth sign-in with Google
         const userRef = ref(database, `users/${uid}`);
         const doctorProfileRef = ref(database, `doctors/${uid}/perfil`);
 
-        console.log(`Step 5: Checking database for existing profile for UID: ${uid}`); // ADDED LOG
+        console.log(`Step 5: Checking database for existing profile for UID: ${uid}`);
         const [userSnapshot, doctorSnapshot] = await Promise.all([
             get(userRef),
             get(doctorProfileRef)
         ]);
 
         if (!userSnapshot.exists() || !doctorSnapshot.exists()) {
-          // If either the user record or the doctor profile is missing, create/set both
-          console.log('Step 6: Profile not found in DB. Creating...'); // ADDED LOG
+          console.log('Step 6: Profile not found in DB. Creating...');
 
           const userData = {
               email: user.email,
-              role: 'doctor', // Assuming all Google sign-ins are doctors for this app
-              createdAt: new Date().toISOString() // Add creation timestamp
+              role: 'doctor', // Default role for new Google sign-ins
+              createdAt: new Date().toISOString()
           };
 
            const doctorProfileData = {
-              nombre: user.displayName?.split(" ")[0] || "Nombre", // Attempt to parse first name from Google display name
-              apellido: user.displayName?.split(" ").slice(1).join(" ") || "Apellido", // Attempt to parse last name
-              especialidad: "sin asignar", // Google does not provide specialty
-              telefono: "", // Google does not provide phone number
-              photoURL: user.photoURL || "", // Use Google provided photo URL
-              createdAt: new Date().toISOString() // Add creation timestamp
+              nombre: user.displayName?.split(" ")[0] || "Nombre",
+              apellido: user.displayName?.split(" ").slice(1).join(" ") || "Apellido",
+              especialidad: "sin asignar",
+              telefono: "",
+              photoURL: user.photoURL || "",
+              createdAt: new Date().toISOString()
            };
 
-           console.log("Step 7: Attempting to save user and doctor profile to DB..."); // ADDED LOG
+           console.log("Step 7: Attempting to save user and doctor profile to DB...");
            await Promise.all([
                set(userRef, userData),
                set(doctorProfileRef, doctorProfileData)
            ]);
 
-          console.log('Step 8: Nuevo perfil de doctor/usuario creado en DB.'); // ADDED LOG
-          setSuccess('Inicio de sesión con Google exitoso. Perfil creado. Redirigiendo a dashboard...');
-          // Decide where to navigate new Google users. '/configuracion' might be better
-          // if they need to fill in specialty/phone, or '/dashboard' if defaults are okay.
-          // navigate('/configuracion');
-          navigate('/dashboard'); // Default navigation for now
+          console.log('Step 8: Nuevo perfil de doctor/usuario creado en DB.');
+          setSuccess('Inicio de sesión con Google exitoso. Perfil creado. Redirigiendo...');
+          // New users (defaulting to 'doctor' role) go to the doctor dashboard
+          navigate('/dashboard');
 
         } else {
-          console.log('Step 6: Perfil de doctor/usuario existente verificado en DB.'); // ADDED LOG
+          console.log('Step 6: Perfil de doctor/usuario existente verificado en DB.');
           setSuccess('Inicio de sesión con Google exitoso. Redirigiendo...');
-          navigate('/dashboard'); // Navigate existing users to dashboard
+          // *** MODIFICATION: Check role and redirect ***
+          await redirectToDashboard(uid);
         }
-        // --- End of database logic ---
 
       } catch (error: any) {
-        console.error("Error signing in with Google credential or saving data:", error); // ADDED LOG
+        console.error("Error signing in with Google credential or saving data:", error);
         if (error.code === 'auth/account-exists-with-different-credential') {
           setError('Ya existe una cuenta con este correo electrónico pero con un método de inicio de sesión diferente. Intenta iniciar sesión con el método original (correo/contraseña o Google si ya usaste ese).');
         } else {
           setError(`Error al iniciar sesión o guardar datos con Google: ${error.message}`);
         }
       } finally {
-         setIsLoading(false); // Turn off loading regardless of success or failure
+         setIsLoading(false);
       }
     } else {
-       console.error("Step 1: Google credential response did not contain a credential.", response); // ADDED LOG
+       console.error("Step 1: Google credential response did not contain a credential.", response);
        setError("Error al recibir respuesta de Google.");
-       setIsLoading(false); // Turn off loading if no credential is received
+       setIsLoading(false);
     }
   };
 
   // useEffect to initialize Google Identity Services when the component mounts
   useEffect(() => {
-    console.log("Step 0: Running useEffect for Google Identity Services initialization."); // ADDED LOG
-    // Check if the google namespace is available before initializing
+    console.log("Step 0: Running useEffect for Google Identity Services initialization.");
     const initGoogle = () => {
       if (google && google.accounts && google.accounts.id) {
-        console.log("Step 0a: Initializing Google Identity Services..."); // ADDED LOG
-        // YES, this client_id is used here: YOUR GOOGLE CLOUD CLIENT ID for Web
+        console.log("Step 0a: Initializing Google Identity Services...");
         google.accounts.id.initialize({
           client_id: '127465468754-kpsk6hlcj9cubic8be05o204nhubpgdk.apps.googleusercontent.com',
-          callback: handleCredentialResponse, // Link the callback function
-          auto_select: false, // Set to true for automatic sign-in on subsequent visits
-          cancel_on_tap_outside: true, // Dismiss the prompt when clicking outside
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
         });
-         console.log("Step 0b: Google Identity Services initialized."); // ADDED LOG
-
-        // If you were rendering a specific Google button div, you would use renderButton here.
-        // Since you are using a custom button that calls prompt(), renderButton is not needed here.
-
+         console.log("Step 0b: Google Identity Services initialized.");
       } else {
         console.error("Google Identity Services script not loaded or namespace not found. Retrying initialization...");
-        // Retry initialization after a delay if the script wasn't ready immediately
         setTimeout(initGoogle, 500);
       }
     };
-
-    initGoogle(); // Initial call to start the initialization process
-
-    // No cleanup needed for this specific initialization
-    // return () => { };
-  }, []); // Empty dependency array means this effect runs only once after the initial render
-
+    initGoogle();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -165,11 +175,10 @@ const LoginPage: React.FC = () => {
     setIsRegistering(true);
     setError(null);
     setSuccess(null);
-    // Clear form data except possibly email
     setFormData({
       nombre: '',
       apellido: '',
-      email: formData.email, // Keep email if user typed it before switching
+      email: formData.email,
       password: '',
       confirmPassword: '',
       especialidad: '',
@@ -181,11 +190,10 @@ const LoginPage: React.FC = () => {
     setIsRegistering(false);
     setError(null);
     setSuccess(null);
-     // Clear form data except possibly email
     setFormData({
       nombre: '',
       apellido: '',
-      email: formData.email, // Keep email if user typed it before switching
+      email: formData.email,
       password: '',
       confirmPassword: '',
       especialidad: '',
@@ -201,28 +209,24 @@ const LoginPage: React.FC = () => {
 
     try {
       if (isRegistering) {
-        // Validation for registration fields
         if (formData.password !== formData.confirmPassword) {
           setError('Las contraseñas no coinciden');
           setIsLoading(false);
           return;
         }
-
         if (!formData.nombre || !formData.apellido || !formData.email || !formData.password || !formData.especialidad || !formData.telefono) {
           setError('Por favor, complete todos los campos obligatorios.');
           setIsLoading(false);
           return;
         }
 
-        // 1. Create user in Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         const uid = userCredential.user.uid;
         console.log('Usuario registrado en Firebase Auth con correo/contraseña:', uid);
 
-        // 2. Save user data to Realtime Database
         const userData = {
           email: formData.email,
-          role: 'doctor', // Assuming manual registrations are doctors
+          role: 'doctor', // Default role for new email/password sign-ins
           createdAt: new Date().toISOString()
         };
 
@@ -232,40 +236,42 @@ const LoginPage: React.FC = () => {
           especialidad: formData.especialidad,
           telefono: formData.telefono,
           createdAt: new Date().toISOString(),
-          photoURL: '' // No photoURL from email/password registration
+          photoURL: ''
         };
 
         const userRef = ref(database, 'users/' + uid);
         const doctorProfileRef = ref(database, 'doctors/' + uid + '/perfil');
 
-        console.log("Attempting to save user and doctor profile to DB after email/password registration..."); // ADDED LOG
+        console.log("Attempting to save user and doctor profile to DB after email/password registration...");
         await Promise.all([
             set(userRef, userData),
             set(doctorProfileRef, doctorProfileData)
         ]);
-        console.log('Perfil de doctor/usuario guardado en DB tras registro con correo/contraseña.'); // ADDED LOG
+        console.log('Perfil de doctor/usuario guardado en DB tras registro con correo/contraseña.');
 
 
         setSuccess('Registro exitoso. Redirigiendo a configuración de perfil...');
-        navigate('/configuracion'); // Redirect new users to config
+         // New users (defaulting to 'doctor' role) go to the doctor dashboard
+        navigate('/dashboard'); // Or '/configuracion' if you prefer
 
       } else { // This is the login flow (email/password)
-        // Validation for login fields
          if (!formData.email || !formData.password) {
           setError('Por favor, ingrese correo electrónico y contraseña.');
           setIsLoading(false);
           return;
         }
 
-        // Sign in with email and password
-        console.log("Attempting email/password login..."); // ADDED LOG
+        console.log("Attempting email/password login...");
         const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-        console.log('Usuario logueado con correo/contraseña:', userCredential.user); // ADDED LOG
+        const uid = userCredential.user.uid;
+        console.log('Usuario logueado con correo/contraseña:', userCredential.user);
         setSuccess('Login exitoso. Redirigiendo...');
-        navigate('/dashboard'); // Redirect logged-in users to dashboard
+
+        // *** MODIFICATION: Check role and redirect ***
+        await redirectToDashboard(uid);
       }
     } catch (error: any) {
-      console.error('Firebase Error (Email/Password):', error); // ADDED LOG
+      console.error('Firebase Error (Email/Password):', error);
       if (isRegistering) {
         if (error.code === 'auth/email-already-in-use') {
           setError('El correo electrónico ya está en uso. Intente iniciar sesión.');
@@ -290,27 +296,21 @@ const LoginPage: React.FC = () => {
         }
       }
     } finally {
-      setIsLoading(false); // Ensure loading is turned off after any submit attempt
+      setIsLoading(false);
     }
   };
 
-  // Function to trigger the Google Identity Services prompt
   const loginWithGoogle = () => {
     setError(null);
     setSuccess(null);
-    setIsLoading(true); // Indicate loading state immediately when the button is clicked
-
-    // Trigger the Google Sign-In prompt/popup.
-    // The result will be handled by the handleCredentialResponse callback.
+    setIsLoading(true);
     if (google && google.accounts && google.accounts.id) {
-       console.log("Step Google 0: Triggering Google Identity Services prompt..."); // ADDED LOG
+       console.log("Step Google 0: Triggering Google Identity Services prompt...");
        google.accounts.id.prompt();
-       // The rest of the process (sign-in to Firebase and saving to DB) happens
-       // asynchronously in handleCredentialResponse.
     } else {
       console.error("Google Identity Services not initialized or script not loaded.");
       setError("Error: Servicio de inicio de sesión con Google no disponible. Intente recargar la página.");
-      setIsLoading(false); // Turn off loading if GSI is not ready
+      setIsLoading(false);
     }
   };
 
