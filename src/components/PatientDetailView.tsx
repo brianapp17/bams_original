@@ -665,7 +665,15 @@ const PatientDetailView: React.FC = () => {
 
           {/* Center Content Area (Search, Medical Records) */}
           <div className="flex-1 flex flex-col min-w-0">
-            <div className="mb-4 flex space-x-4 flex-shrink-0 p-2">
+            
+            {/* Main Card Area (Search + Records) */}
+            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
+              <div className="flex-shrink-0">
+              
+              <div className="mb-4 flex space-x-4 flex-shrink-0 p-2">
+              <h2 className="text-xl font-bold text-teal-800  ">
+                Registros Médicos
+              </h2>
               <Link to="/expedientes" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
                 <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -684,18 +692,14 @@ const PatientDetailView: React.FC = () => {
                 Ver Mis Reportes AI
               </Link>
             </div>
-            {/* Main Card Area (Search + Records) */}
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
-              <div className="flex-shrink-0">
+              
                 <SearchBar
                   searchQuery={searchQuery} // Esto ya está bien
                   setSearchQuery={setSearchQuery} // Esto ya está bien
                   handleSearch={handleSearchSubmit} // Esto ya está bien
                 />
               </div>
-              <h2 className="text-xl font-bold text-teal-800 mb-4 mt-6 flex-shrink-0">
-                Registros Médicos
-              </h2>
+             
               {/* Scrollable area for Medical Records content */}
               <div className="flex-1 overflow-y-auto min-h-0">
                 {isLoadingRecords ? (
