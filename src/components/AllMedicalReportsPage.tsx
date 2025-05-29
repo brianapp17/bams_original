@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, onValue } from "firebase/database";
 import { app } from '../firebase';
-import { FileText, Download, Eye, XCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { FileText, Download, Eye, XCircle, ArrowLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface MedicalReport {
   id: string; // La key única de Firebase
@@ -24,6 +24,7 @@ const AllMedicalReportPages: React.FC = () => {
 
   const auth = getAuth(app);
   const database = getDatabase(app);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let unsubscribeReports: (() => void) | undefined;
@@ -99,17 +100,36 @@ const AllMedicalReportPages: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
+    <div className="min-h-screen bg-gray-50 p-8 w-full">
+      <div className="w-full bg-white p-8 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-teal-800">Mis Reportes Médicos</h1>
-          {/* Botón para volver a la lista de expedientes (dashboard) */}
-          <Link to="/expedientes" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
+           {/* Botón para volver al Dashboard */}
+           <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
             <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            Volver a Expedientes
+            Volver al Dashboard
           </Link>
+          
+          
+          
+         
+          {/* Título centrado */}
+          <div className="flex-grow text-center">
+            <h1 className="text-2xl font-bold text-teal-800">Mis Reportes Médicos</h1>
+          </div>
+         
+ {/* Botón para volver a la vista anterior */}
+ <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
+
+
+         
         </div>
 
         {medicalReports.length === 0 ? (

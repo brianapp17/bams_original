@@ -1,6 +1,6 @@
 // ChatSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { TestTube2, Send } from 'lucide-react';
+import { Atom, Send } from 'lucide-react'; // Changed from TestTube2 to Atom
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
 import remarkGfm from 'remark-gfm';
@@ -110,9 +110,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     <aside className="bg-white w-80 h-full flex flex-col rounded-lg shadow-md">
 
       {/* Este div es el encabezado. flex-shrink-0 evita que se encoja */}
-      <div className="flex items-center gap-2 text-gray-800 p-4 pb-2 flex-shrink-0 border-b">
-        <TestTube2 className="w-5 h-5" />
-        <span className="font-medium">BAMS AI Chat</span>
+      <div className="flex items-center gap-2 text-teal-800 p-4 pb-2 flex-shrink-0 border-b"> {/* Changed text color to teal-800 */}
+        <Atom className="w-5 h-5" /> {/* Changed icon to Atom */}
+        <span className="font-medium">BAMS AI</span>
       </div>
 
       {/* Este div es el área de mensajes. */}
