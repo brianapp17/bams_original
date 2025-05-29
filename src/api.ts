@@ -2,9 +2,9 @@
 
 const PATIENT_SERVICES_URL = 'https://patientservices-127465468754.us-central1.run.app';
 const ALL_PATIENTS_URL = 'https://allpatientsid-127465468754.us-central1.run.app';
-const CHATBOT_API_URL = 'https://bamsgenerador-127465468754.us-central1.run.app';
-const PDFBAMS_API_URL = 'https://pdfbams-127465468754.us-central1.run.app';
-const BAMSNOTES_API_URL = 'https://bamsnotes-127465468754.us-central1.run.app';
+const CHATBOT_API_URL = 'https://bams-127465468754.us-central1.run.app/bamschat';
+const PDFBAMS_API_URL = 'https://bams-127465468754.us-central1.run.app/bamspdf';
+const BAMSNOTES_API_URL = 'https://bams-127465468754.us-central1.run.app/bamsnotes';
 
 
 export async function fetchAllPatients() {
@@ -181,7 +181,7 @@ export function getCategoryLabel(category: string): string {
  * @param patientId The ID of the patient (opcional, si tu API lo necesita en el form-data, aunque no lo especificaste).
  * @returns A promise that resolves to the JSON response from the API (esperado: { response: string }).
  */
-export async function generateNoteFromAudio(audioBlob: Blob, patientId?: string): Promise<{ response: string }> {
+export async function generateNoteFromAudio(audioBlob: Blob, id: string): Promise<{ response: string }> {
   if (!audioBlob) {
     throw new Error("Audio blob is required to generate notes.");
   }

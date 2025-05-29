@@ -1,7 +1,7 @@
 // PatientSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { PatientInfo, NotaConsultaItem } from '../types'; // NotaConsultaItem se usa en la prop onSaveNewNote
-import { User, Mic, FileUp, Scan, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { User, Mic, FileUp, Scan, CheckCircle, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateNoteFromAudio } from '../api'; // Asumiendo que has movido la función a api.ts
@@ -309,7 +309,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     setAnalysisResults(null);
     setAnalysisError(null);
 
-    const apiUrl = 'https://bamsimage-127465468754.us-central1.run.app';
+    const apiUrl = 'https://bams-127465468754.us-central1.run.app/bamsexams';
     const formData = new FormData();
     const analysisPrompt = `Analiza la siguiente imagen médica en el contexto de los registros médicos del paciente proporcionados en formato FHIR. Identifica hallazgos relevantes y su posible relación con el historial del paciente. Presenta los resultados de forma clara y estructurada. Registros FHIR del paciente: ${fhirData}`;
 
