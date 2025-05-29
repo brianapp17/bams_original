@@ -183,6 +183,9 @@ const LoginPage: React.FC = () => {
             <li>Generación automatizada de reportes médicos</li>
             <li>Dictado médico inteligente</li>
             <li>Interpretación de exámenes bioquímicos asistida por IA</li>
+            <li><strong>Cuenta demostrativa:</strong> doctordemo@gmail.com</li>
+<li><strong>Contraseña demostrativa:</strong> doctor123</li>
+
           </ul>
           <p className="text-xs text-gray-500 mt-6">
             Si quieres más información pregunta a nuestro asistente con IA para usuarios nuevos en la esquina inferior derecha.
