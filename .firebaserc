@@ -2,6 +2,14 @@
   "projects": {
     "bams_v2": "prototipado-ia-robotica"
   },
-  "targets": {},
+  "targets": {
+    "prototipado-ia-robotica": {
+      "hosting": {
+        "bams_site": [
+          "bams-ia"
+        ]
+      }
+    }
+  },
   "etags": {}
 }
