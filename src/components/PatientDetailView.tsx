@@ -57,7 +57,7 @@ const PatientDetailView: React.FC = () => {
 
   // --- NUEVO ESTADO Y REF PARA EL BOTÓN DE REPORTE AI ---
   const [isDownloadingReport, setIsDownloadingReport] = useState(false);
-  const [reportButtonText, setReportButtonText] = useState("Reporte AI");
+  const [reportButtonText, setReportButtonText] = useState("Generar reporte IA");
   const reportIntervalIdRef = useRef<NodeJS.Timeout | undefined>(undefined);
   // --- FIN NUEVO ESTADO Y REF ---
 
@@ -67,7 +67,7 @@ const PatientDetailView: React.FC = () => {
 
   // --- NUEVA CONSTANTE PARA MENSAJES DE CARGA DEL REPORTE ---
   const reportLoadingMessages = [
-    " Generar Reporte IA",
+    " Generar reporte IA",
     "Analizando historial...",
     "Leyendo expediente...",
     "Resumiendo datos médicos...",
