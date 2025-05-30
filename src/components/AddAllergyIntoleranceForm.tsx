@@ -37,7 +37,7 @@ const AddAllergyIntoleranceForm: React.FC<AddAllergyIntoleranceFormProps> = ({ o
         <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nueva Alergia/Intolerancia</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="substance" className="block text-sm font-medium text-gray-700">Sustancia/Código</label>
+            <label htmlFor="substance" className="block text-sm font-medium text-gray-700">Sustancia/Alergia</label>
             <input
               type="text"
               name="substance"

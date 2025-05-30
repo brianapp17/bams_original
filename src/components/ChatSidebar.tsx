@@ -112,7 +112,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {/* Este div es el encabezado. flex-shrink-0 evita que se encoja */}
       <div className="flex items-center gap-2 text-teal-800 p-4 pb-2 flex-shrink-0 border-b"> {/* Changed text color to teal-800 */}
         <Atom className="w-5 h-5" /> {/* Changed icon to Atom */}
-        <span className="font-medium">BAMS AI</span>
+        <span className="font-medium">BAMS IA</span>
       </div>
 
       {/* Este div es el área de mensajes. */}
@@ -158,7 +158,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           type="text"
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
-          placeholder="Haz una pregunta sobre los registros médicos..."
+          placeholder="¿En que te puedo ayudar?"
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={isChatLoading} // Disable input while loading
         />

@@ -6,7 +6,7 @@ import { getDatabase, ref, onValue, off, push, set } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // <--- Añadido para Storage
 import { app } from '../firebase';
 import type { Patient, ApiResponse, PatientInfo, ChatMessage, NotaConsultaItem } from '../types';
-import { getCategoryLabel, fetchMarkdown } from '../api'; // <--- Añadido fetchMarkdown
+import { fetchMarkdown } from '../api'; // <--- Añadido fetchMarkdown
 import { FileText } from 'lucide-react';
 import { jsPDF } from 'jspdf'; // <--- Añadido jsPDF
 
@@ -67,7 +67,7 @@ const PatientDetailView: React.FC = () => {
 
   // --- NUEVA CONSTANTE PARA MENSAJES DE CARGA DEL REPORTE ---
   const reportLoadingMessages = [
-    "Reporte AI",
+    "Reporte IA",
     "Analizando historial...",
     "Leyendo expediente...",
     "Resumiendo datos médicos...",
@@ -233,71 +233,6 @@ const PatientDetailView: React.FC = () => {
     }
   };
 
-  const getCategories = useCallback(() => {
-    if (!medicalRecords?.results) return [];
-    const categoriesMap = new Map<string, boolean>();
-    medicalRecords.results.forEach(record => {
-      const data = record.document.structData;
-      const extractCategories = (resource: any, resourceTypeKey: string) => {
-        if (resource?.category) {
-          resource.category.forEach((cat: any) => {
-            if (cat.text) categoriesMap.set(getCategoryLabel(cat.text), true);
-            if (cat.coding) {
-              cat.coding.forEach((code: any) => {
-                if (code.display) categoriesMap.set(getCategoryLabel(code.display), true);
-                else if (code.code) categoriesMap.set(getCategoryLabel(code.code), true);
-              });
-            }
-          });
-        } else {
-          if (resourceTypeKey === 'Procedure') categoriesMap.set(getCategoryLabel('Procedure'), true);
-          else if (resourceTypeKey === 'Encounter') categoriesMap.set(getCategoryLabel('Encounter'), true);
-          else if ((resourceTypeKey === 'MedicationAdministration' || resourceTypeKey === 'MedicationAdministrationDuplicate') && resource?.medication) categoriesMap.set(getCategoryLabel('Medication'), true);
-          else if (resourceTypeKey === 'AllergyIntolerance' && resource?.code) categoriesMap.set(getCategoryLabel('Allergy'), true);
-          else if (resourceTypeKey === 'Immunization' && resource?.vaccineCode) categoriesMap.set(getCategoryLabel('Immunization'), true);
-          else if (resourceTypeKey === 'ClinicalImpression') categoriesMap.set(getCategoryLabel('ClinicalImpression'), true);
-          else if (resourceTypeKey === 'MedicationRequest' && resource?.medicationCodeableConcept) categoriesMap.set(getCategoryLabel('MedicationRequest'), true);
-          else if (resourceTypeKey === 'DiagnosticReport' && resource?.code) categoriesMap.set(getCategoryLabel('DiagnosticReport'), true);
-          else if (resourceTypeKey === 'ServiceRequest' && resource?.code) categoriesMap.set(getCategoryLabel('ServiceRequest'), true);
-          else if (resourceTypeKey === 'MedicationDispense' && resource?.medication) categoriesMap.set(getCategoryLabel('MedicationDispense'), true);
-        }
-      };
-      if (data.Observation) extractCategories(data.Observation, 'Observation');
-      if (data.Condition) extractCategories(data.Condition, 'Condition');
-      if (data.Procedure) extractCategories(data.Procedure, 'Procedure');
-      if (data.Encounter) extractCategories(data.Encounter, 'Encounter');
-      if (data.MedicationAdministration) extractCategories(data.MedicationAdministration, 'MedicationAdministration');
-      if (data.MedicationAdministrationDuplicate) extractCategories(data.MedicationAdministrationDuplicate, 'MedicationAdministrationDuplicate');
-      if (data.AllergyIntolerance) extractCategories(data.AllergyIntolerance, 'AllergyIntolerance');
-      if (data.ClinicalImpression) extractCategories(data.ClinicalImpression, 'ClinicalImpression');
-      if (data.Immunization) extractCategories(data.Immunization, 'Immunization');
-      if (data.MedicationRequest) extractCategories(data.MedicationRequest, 'MedicationRequest');
-      if (data.DiagnosticReport) extractCategories(data.DiagnosticReport, 'DiagnosticReport');
-      if (data.ServiceRequest) extractCategories(data.ServiceRequest, 'ServiceRequest');
-      if (data.MedicationDispense) extractCategories(data.MedicationDispense, 'MedicationDispense');
-    });
-    let categories = Array.from(categoriesMap.keys()).sort();
-    const checkAndAddCategory = (resourceKey: keyof ApiResponse['results'][number]['document']['structData'], labelKey: string) => {
-         const hasResource = medicalRecords?.results.some(record => record.document.structData[resourceKey]);
-         const categoryLabel = getCategoryLabel(labelKey);
-         if (hasResource && !categories.includes(categoryLabel)) { categories.push(categoryLabel); }
-    };
-    checkAndAddCategory('Observation', 'Observation');
-    checkAndAddCategory('Condition', 'Condition');
-    checkAndAddCategory('Procedure', 'Procedure');
-    checkAndAddCategory('Encounter', 'Encounter');
-    checkAndAddCategory('MedicationAdministration', 'Medication');
-    checkAndAddCategory('MedicationAdministrationDuplicate', 'Medication');
-    checkAndAddCategory('MedicationRequest', 'MedicationRequest');
-    checkAndAddCategory('AllergyIntolerance', 'Allergy');
-    checkAndAddCategory('Immunization', 'Immunization');
-    checkAndAddCategory('ClinicalImpression', 'ClinicalImpression');
-    checkAndAddCategory('DiagnosticReport', 'DiagnosticReport');
-    checkAndAddCategory('ServiceRequest', 'ServiceRequest');
-    checkAndAddCategory('MedicationDispense', 'MedicationDispense');
-    categories.sort();
-    return categories;
-  }, [medicalRecords]);
 
   const fhirDataString = medicalRecords ? JSON.stringify(medicalRecords, null, 2) : null;
 
@@ -551,9 +486,8 @@ const PatientDetailView: React.FC = () => {
           <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col">
             <PatientSidebar
               patientInfo={patientInfo}
-              categories={getCategories()}
-              selectedCategory={selectedCategory ? getCategoryLabel(selectedCategory) : null}
-              setSelectedCategory={setSelectedCategory}
+              selectedCategory={selectedCategory} // Pasa el estado directamente
+              setSelectedCategory={setSelectedCategory} // Pasa el setter directamente
               fhirData={fhirDataString}
               onSaveNewNote={handleSaveNewConsultationNote}
             />
@@ -564,14 +498,14 @@ const PatientDetailView: React.FC = () => {
               <div className="flex-shrink-0">
                 <div className="mb-4 flex space-x-4 flex-shrink-0 p-2 items-center"> {/* Añadido items-center para alinear botones */}
                   <h2 className="text-xl font-bold text-teal-800 mr-auto"> {/* mr-auto para empujar botones a la derecha */}
-                    Registros Médicos
+                    Historial Médico
                   </h2>
                   {/* Botón "Volver a Expedientes" ELIMINADO de aquí */}
                   <button
                     onClick={handleAddResourceClick}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                   >
-                    Agregar Recurso
+                    Agregar al Expediente
                   </button>
                   {/* --- NUEVO BOTÓN DE REPORTE AI AQUÍ --- */}
                   {patientId && ( // Solo mostrar si hay un patientId (aunque ya estamos dentro de un bloque que lo asegura)
@@ -587,7 +521,7 @@ const PatientDetailView: React.FC = () => {
                   {/* --- FIN NUEVO BOTÓN --- */}
                   <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
                     <FileText className="w-5 h-5 mr-2" />
-                    Ver Mis Reportes AI
+                    Ver Mis Reportes IA
                   </Link>
                 </div>
                 <SearchBar

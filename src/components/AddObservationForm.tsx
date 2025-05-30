@@ -48,7 +48,7 @@ const AddObservationForm: React.FC<AddObservationFormProps> = ({ onSave, onCance
         <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nueva Observación</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="codeText" className="block text-sm font-medium text-gray-700">Código (Qué se observó?)</label>
+            <label htmlFor="codeText" className="block text-sm font-medium text-gray-700">Observación</label>
             <input
               type="text"
               name="codeText"

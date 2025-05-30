@@ -39,7 +39,7 @@ const AddProcedureForm: React.FC<AddProcedureFormProps> = ({ onSave, onCancel })
         <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nuevo Procedimiento</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="codeText" className="block text-sm font-medium text-gray-700">Código (Nombre del procedimiento)</label>
+            <label htmlFor="codeText" className="block text-sm font-medium text-gray-700">Nombre del procedimiento</label>
             <input
               type="text"
               name="codeText"

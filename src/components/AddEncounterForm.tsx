@@ -48,7 +48,8 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
               id="type"
               value={formData.type}
               onChange={handleInputChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Ej: Consulta General,Control de Enfermedad Cronica."
               required
             />
           </div>

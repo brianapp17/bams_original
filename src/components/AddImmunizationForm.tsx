@@ -44,7 +44,7 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
           <div className="space-y-4">
             <div>
               <label htmlFor="vaccineCode" className="block text-sm font-medium text-gray-700">
-                Código de Vacuna (Nombre/Tipo)
+                Vacuna (Nombre/Tipo)
               </label>
               <input
                 type="text"

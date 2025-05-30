@@ -1,5 +1,5 @@
 // AllMedicalReportPages.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, onValue } from "firebase/database";
 import { app } from '../firebase';
@@ -77,9 +77,29 @@ const AllMedicalReportPages: React.FC = () => {
     setSelectedReportUrl(url);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setSelectedReportUrl(null);
-  };
+  }, []);
+
+  // Effect to handle the Escape key press
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCloseModal();
+      }
+    };
+
+    if (selectedReportUrl) {
+      document.addEventListener('keydown', handleEsc);
+    } else {
+      document.removeEventListener('keydown', handleEsc);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [selectedReportUrl, handleCloseModal]); // Add handleCloseModal to dependencies
+
 
   if (isLoading) {
     return (
@@ -100,26 +120,11 @@ const AllMedicalReportPages: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 w-full">
-      <div className="w-full bg-white p-8 rounded-lg shadow-md">
-        <div className="flex items-center justify-between mb-6">
-           {/* Botón para volver al Dashboard */}
-           <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
-            <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Volver al Dashboard
-          </Link>
-          
-          
-          
-         
-          {/* Título centrado */}
-          <div className="flex-grow text-center">
-            <h1 className="text-2xl font-bold text-teal-800">Mis Reportes Médicos</h1>
-          </div>
-         
- {/* Botón para volver a la vista anterior */}
+    <div className="min-h-screen bg-gray-50 p-8 w-full"> {/* Added p-8 back */}
+      <div className="w-full max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-md"> {/* Reverted classes, added max-w-6xl mx-auto */}
+        <div className="flex items-center justify-between mb-6"> {/* Removed p-8 here */}
+
+          {/* Botón para volver a la vista anterior */}
  <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
@@ -127,15 +132,32 @@ const AllMedicalReportPages: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
 
+          
+          
+         
+          {/* Título centrado */}
+          <div className="flex-grow text-center">
+            <h1 className="text-2xl font-bold text-teal-800">Mis Reportes Médicos</h1>
+          </div>
+          {/* Botón para volver al Dashboard */}
+           <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
+            <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Volver al Dashboard
+          </Link>
+ 
 
 
          
         </div>
 
         {medicalReports.length === 0 ? (
-          <p className="text-center text-gray-600">No hay reportes médicos guardados aún.</p>
+          <p className="text-center text-gray-600"> {/* Removed p-8 here */}
+            No hay reportes médicos guardados aún.
+          </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {/* Removed p-8 here */}
             {medicalReports.map((report) => (
               <div key={report.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-col justify-between">
                 <div>
@@ -179,9 +201,11 @@ const AllMedicalReportPages: React.FC = () => {
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl h-5/6 flex flex-col">
             <button
               onClick={handleCloseModal}
-              className="absolute top-3 right-3 text-gray-800 hover:text-gray-600 focus:outline-none"
+              className="absolute top-3 right-3 text-white focus:outline-none"
+              aria-label="Cerrar vista previa del reporte"
             >
-              <XCircle className="w-7 h-7" />
+              {/* Adjusted size and removed unnecessary classes */}
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
             </button>
             <iframe
               src={selectedReportUrl}
