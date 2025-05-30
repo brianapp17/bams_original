@@ -106,8 +106,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 
   return (
-    // CAMBIO CLAVE AQUÍ: Se añade 'rounded-lg' y 'shadow-md', se elimina 'border-l'
-    <aside className="bg-white w-80 h-full flex flex-col rounded-lg shadow-md">
+    // CAMBIOS PRINCIPALES EN ESTA LÍNEA:
+    // - 'w-80' cambiado a 'w-full lg:w-96' para ancho responsive.
+    // - Añadido 'min-h-[400px] lg:min-h-0' para asegurar una altura mínima en móvil
+    //   sin afectar el comportamiento de 'h-full' en pantallas grandes.
+    <aside className="bg-white w-full lg:w-96 min-h-[400px] lg:min-h-0 h-full flex flex-col rounded-lg shadow-md">
 
       {/* Este div es el encabezado. flex-shrink-0 evita que se encoja */}
       <div className="flex items-center gap-2 text-teal-800 p-4 pb-2 flex-shrink-0 border-b"> {/* Changed text color to teal-800 */}

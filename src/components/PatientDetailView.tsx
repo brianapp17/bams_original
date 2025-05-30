@@ -489,11 +489,15 @@ const PatientDetailView: React.FC = () => {
         {/* Header is flex-shrink-0 */}
         <Header resetSearch={() => {}} />
 
-        {/* Main content area: Uses flex-1 to take remaining height. Flex-col on mobile, flex-row on large */}
-        <div className="flex flex-1 p-4 gap-4 items-stretch overflow-hidden flex-col lg:flex-row"> {/* Added flex-col lg:flex-row */}
+        {/* Main content area: Uses flex-1 to take remaining height. 
+            Flex-col on mobile (allows vertical scroll via overflow-y-auto).
+            Flex-row on large screens.
+        */}
+        {/* MODIFIED: Changed overflow-hidden to overflow-y-auto */}
+        <div className="flex flex-1 p-4 gap-4 items-stretch flex-col lg:flex-row overflow-y-auto">
 
-          {/* Patient Sidebar: Full width on mobile, fixed width on large. Order 3 on mobile, 1 on large */}
-          <div className="w-full flex-shrink-0 flex flex-col order-3 lg:w-72 xl:w-80 lg:order-1"> {/* Added w-full, order-3 lg:order-1 */}
+          {/* Patient Sidebar: Full width on mobile, fixed width on large. Order 1 on mobile, 1 on large */}
+          <div className="w-full flex-shrink-0 flex flex-col order-1 lg:w-72 xl:w-80 lg:order-1">
             <PatientSidebar
               patientInfo={patientInfo}
               selectedCategory={selectedCategory}
@@ -503,15 +507,14 @@ const PatientDetailView: React.FC = () => {
             />
           </div>
 
-          {/* Main Records Area: Flex-1 to take space. Order 1 on mobile, 2 on large */}
-          {/* min-w-0 is important to prevent overflow when flex items have large content */}
-          <div className="flex-1 flex flex-col min-w-0 order-1 lg:order-2"> {/* Added order-1 lg:order-2 */}
-            <div className="max-w-full mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full"> {/* Changed max-w-4xl to max-w-full */}
+          {/* Main Records Area: Flex-1 to take space. Order 2 on mobile, 2 on large */}
+          <div className="flex-1 flex flex-col min-w-0 order-2 lg:order-2">
+            <div className="max-w-full mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
               <div className="flex-shrink-0">
                 {/* Header controls for main area: flex-wrap on mobile to prevent overflow */}
-                <div className="mb-4 flex gap-2 flex-wrap flex-shrink-0 p-2 items-center"> {/* Changed space-x-4 to gap-2, added flex-wrap */}
+                <div className="mb-4 flex gap-2 flex-wrap flex-shrink-0 p-2 items-center">
                   {/* Title takes remaining space if available */}
-                  <h2 className="text-xl font-bold text-teal-800 mr-auto flex-grow"> {/* Added flex-grow */}
+                  <h2 className="text-xl font-bold text-teal-800 mr-auto flex-grow">
                     Historial Médico
                   </h2>
                   {/* Buttons */}
@@ -529,13 +532,13 @@ const PatientDetailView: React.FC = () => {
                       disabled={isDownloadingReport}
                       style={{ backgroundColor: '#29a3ac' }}
                     >
-                      {isDownloadingReport && <FileText className="animate-pulse w-5 h-5" />} {/* Optional: Add loading icon */}
+                      {isDownloadingReport && <FileText className="animate-pulse w-5 h-5" />}
                       {reportButtonText}
-                       {!isDownloadingReport && <FileText className="w-5 h-5" />} {/* Show icon when not loading */}
+                       {!isDownloadingReport && <FileText className="w-5 h-5" />}
                     </button>
                   )}
                   {/* View Reports Button */}
-                  <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 flex-shrink-0"> {/* Added flex-shrink-0 */}
+                  <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 flex-shrink-0">
                     <FileText className="w-5 h-5 mr-2" />
                     Ver Reportes IA
                   </Link>
@@ -548,7 +551,7 @@ const PatientDetailView: React.FC = () => {
                 />
               </div>
               {/* Medical Records List: Takes remaining height, allows internal scrolling */}
-              <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="flex-1 overflow-y-auto min-h-0"> {/* This scroll is for the list *within* the medical records area */}
                 {isLoadingRecords ? (
                   <div className="text-center text-gray-600">Cargando registros médicos...</div>
                 ) : recordsError ? (
@@ -564,8 +567,9 @@ const PatientDetailView: React.FC = () => {
             </div>
           </div>
 
-          {/* Chat Sidebar: Full width on mobile, fixed width on large. Border top on mobile, border left on large. Order 2 on mobile, 3 on large */}
-          <div className="w-full border-t border-gray-200 flex flex-col order-2 lg:w-96 lg:border-l lg:border-t-0 lg:order-3"> {/* Added w-full, border-t, lg:border-l, lg:border-t-0, order-2 lg:order-3 */}
+          {/* Chat Sidebar: Full width on mobile, fixed width on large. Border top on mobile, border left on large. Order 3 on mobile, 3 on large */}
+          {/* Added pt-4 for spacing on mobile when it's below other content, lg:pt-0 to remove it on large screens */}
+          <div className="w-full border-t border-gray-200 pt-4 lg:pt-0 flex flex-col order-3 lg:w-96 lg:border-l lg:border-t-0 lg:order-3">
             <ChatSidebar
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
