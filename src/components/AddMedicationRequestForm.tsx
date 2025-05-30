@@ -63,13 +63,20 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
 
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-        {/* Título del formulario en español */}
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Nueva Solicitud de Medicamento</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    // Outer container: Fixed, full screen, overlay, centered flex, added padding
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex justify-center items-center p-4"> {/* Added p-4 for padding on small screens */}
+      {/* Inner container: White box, max width, responsive max height, internal flex column layout */}
+      {/* Added max-h-[95vh] to limit height, overflow-hidden and flex/flex-col to control internal scrolling */}
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[95vh] overflow-hidden flex flex-col">
+        {/* Título del formulario en español - flex-shrink-0 prevents it from shrinking */}
+        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4 flex-shrink-0">Nueva Solicitud de Medicamento</h3>
+
+        {/* Form element: Now also the scrollable area. Children (field divs and buttons div) are laid out in a column by space-y-4 */}
+        {/* Added overflow-y-auto and flex-grow. Removed the intermediate wrapper div. */}
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-grow">
+
+          {/* Individual form fields remain direct children of the form */}
           <div>
-            {/* Etiqueta del campo en español */}
             <label htmlFor="medicationName" className="block text-sm font-medium text-gray-700">
               Nombre del medicamento
             </label>
@@ -81,12 +88,11 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               onChange={handleInputChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               required
-              placeholder="Ej: Lisinopril 10mg" // Placeholder ya en español
+              placeholder="Ej: Lisinopril 10mg"
             />
           </div>
 
           <div>
-             {/* Etiqueta del campo en español */}
             <label htmlFor="dosageInstructionText" className="block text-sm font-medium text-gray-700">
               Instrucción de Dosis
             </label>
@@ -98,16 +104,14 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               rows={3}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               required
-              placeholder="Ej: 1 tableta una vez al día" // Placeholder ya en español
+              placeholder="Ej: 1 tableta una vez al día"
             ></textarea>
           </div>
 
           <div>
-             {/* Etiqueta del campo en español */}
             <label htmlFor="routeText" className="block text-sm font-medium text-gray-700">
               Vía de administración (Opcional)
             </label>
-             {/* Usando input type="text" - placeholder ya en español */}
             <input
               type="text"
               name="routeText"
@@ -117,31 +121,14 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               placeholder="Ej: Oral"
              />
-            {/* Si prefieres un select, aquí es donde pondrías las opciones en español */}
-            {/*
-            <select
-              name="routeText"
-              id="routeText"
-              value={formData.routeText}
-              onChange={handleInputChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-            >
-              <option value="">Seleccionar vía</option> // Keep value empty, display in Spanish
-              <option value="Oral route">Oral</option> // Value remains "Oral route", display is "Oral"
-              <option value="Intravenosa">Intravenosa</option>
-              <option value="Topica">Tópica</option> // Corrected accent
-              <option value="Subcutanea">Subcutánea</option> // Corrected accent
-            </select>
-            */}
           </div>
 
           <div>
-             {/* Etiqueta del campo en español */}
             <label htmlFor="authoredOn" className="block text-sm font-medium text-gray-700">
               Fecha de Solicitud
             </label>
             <input
-              type="date" // Or 'datetime-local' if including time
+              type="date"
               name="authoredOn"
               id="authoredOn"
               value={formData.authoredOn}
@@ -152,7 +139,6 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
           </div>
 
           <div>
-             {/* Etiqueta del campo en español */}
             <label htmlFor="intent" className="block text-sm font-medium text-gray-700">
               Intención
             </label>
@@ -164,7 +150,6 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               required
             >
-               {/* Texto visible en español, value interno en inglés FHIR */}
               <option value="">Seleccionar intención</option>
               <option value="order">Orden</option>
               <option value="plan">Plan</option>
@@ -174,7 +159,6 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
           </div>
 
           <div>
-             {/* Etiqueta del campo en español */}
             <label htmlFor="status" className="block text-sm font-medium text-gray-700">
               Estado
             </label>
@@ -186,7 +170,6 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               required
             >
-               {/* Texto visible en español, value interno en inglés FHIR */}
               <option value="">Seleccionar estado</option>
               <option value="active">Activa</option>
               <option value="completed">Completada</option>
@@ -197,8 +180,7 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
             </select>
           </div>
 
-           {/* Etiqueta del campo en español */}
-             <div>
+            <div>
               <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">
                 Nota del Doctor (Opcional)
               </label>
@@ -208,31 +190,32 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
                 rows={2}
                 value={formData.noteText}
                 onChange={handleInputChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
               ></textarea>
             </div>
 
+            {/* Buttons container - moved back INSIDE the form */}
+            {/* Removed mt-6 here as space-y-4 on the form handles spacing */}
+            <div className="flex justify-end space-x-4"> {/* Removed mt-6 */}
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 text-gray-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit" // This button type triggers the form's onSubmit
+                  className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                  Guardar Solicitud
+                </button>
+            </div>
 
-          <div className="flex justify-end space-x-4">
-             {/* Texto del botón en español */}
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 text-gray-800"
-            >
-              Cancelar
-            </button>
-             {/* Texto del botón en español */}
-            <button
-              type="submit"
-              className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-            >
-              Guardar Solicitud
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </form> {/* End of the scrollable form element */}
+
+      </div> {/* End of inner container */}
+    </div> // End of outer container
   );
 };
 

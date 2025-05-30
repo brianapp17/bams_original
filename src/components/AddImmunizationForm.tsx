@@ -18,10 +18,11 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
     vaccineCode: '',
     occurrenceDateTime: '',
     status: 'completed',
-    noteText: '', // <-- ¡CORRECCIÓN 1: Inicializa noteText aquí!
+    noteText: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { // <-- Añadimos HTMLTextAreaElement aquí
+  // Type signature is already correct here: HTMLTextAreaElement
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -33,61 +34,71 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
       alert('Por favor, complete el código de vacuna y la fecha.');
       return;
     }
+    // The core save logic remains untouched
     onSave(formData);
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Agregar Inmunización/Vacuna</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="vaccineCode" className="block text-sm font-medium text-gray-700">
-                Vacuna (Nombre/Tipo)
-              </label>
-              <input
-                type="text"
-                name="vaccineCode"
-                id="vaccineCode"
-                value={formData.vaccineCode}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                placeholder="Ej: MMR, COVID-19, Influenza"
-              />
-            </div>
-            <div>
-              <label htmlFor="occurrenceDateTime" className="block text-sm font-medium text-gray-700">
-                Fecha de Ocurrencia (Administración)
-              </label>
-              <input
-                type="date"
-                name="occurrenceDateTime"
-                id="occurrenceDateTime"
-                value={formData.occurrenceDateTime}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                Estado
-              </label>
-              <select
-                name="status"
-                id="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              >
+    // Outer container: Fixed, full screen, overlay, centered flex, added padding
+    // Removed h-full w-full as inset-0 covers this
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto z-50 flex justify-center items-center p-4"> {/* Added p-4 */}
+      {/* Inner container: White box, max width, responsive max height, internal flex column layout */}
+      {/* Added max-h-[95vh] to limit height, overflow-hidden and flex/flex-col to control internal scrolling */}
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[95vh] overflow-hidden flex flex-col"> {/* Added max-h-[95vh], overflow-hidden, flex, flex-col */}
+        {/* Título del formulario - added flex-shrink-0 */}
+        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4 flex-shrink-0">Agregar Inmunización/Vacuna</h3> {/* Added flex-shrink-0 */}
+
+        {/* Form element: Now also the scrollable area. Its children (field divs and buttons div) are laid out in a column by space-y-4 */}
+        {/* Added overflow-y-auto and flex-grow */}
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-grow"> {/* Added overflow-y-auto, flex-grow */}
+
+          {/* Individual form fields are direct children of the form */}
+          <div>
+            <label htmlFor="vaccineCode" className="block text-sm font-medium text-gray-700">
+              Vacuna (Nombre/Tipo)
+            </label>
+            <input
+              type="text"
+              name="vaccineCode"
+              id="vaccineCode"
+              value={formData.vaccineCode}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
+              placeholder="Ej: MMR, COVID-19, Influenza"
+            />
+          </div>
+          <div>
+            <label htmlFor="occurrenceDateTime" className="block text-sm font-medium text-gray-700">
+              Fecha de Ocurrencia (Administración)
+            </label>
+            <input
+              type="date"
+              name="occurrenceDateTime"
+              id="occurrenceDateTime"
+              value={formData.occurrenceDateTime}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
+            />
+          </div>
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              Estado
+            </label>
+            <select
+              name="status"
+              id="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
+            >
+                {/* The default value 'completed' is set in state, no blank option needed unless desired */}
                 <option value="completed">Completado</option>
                 <option value="entered-in-error">Ingresado por Error</option>
                 <option value="not-done">No Realizado</option>
               </select>
             </div>
-            {/* <-- ¡CORRECCIÓN 2: Añade este campo de nota al JSX! --> */}
             <div>
               <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">
                 Nota del Doctor (Opcional)
@@ -97,13 +108,14 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
                 id="noteText"
                 value={formData.noteText}
                 onChange={handleChange}
-                rows={2} // Puedes ajustar el número de filas
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                rows={2}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
               ></textarea>
             </div>
-            {/* <-- Fin de la Corrección 2 --> */}
-          </div>
-          <div className="mt-6 flex justify-end space-x-3">
+
+          {/* Buttons container - moved back INSIDE the form */}
+          {/* Relies on space-y-4 on the form for spacing from the last field */}
+          <div className="flex justify-end space-x-3 flex-shrink-0"> {/* Removed mt-6, added flex-shrink-0 */}
             <button
               type="button"
               onClick={onCancel}
@@ -112,15 +124,16 @@ const AddImmunizationForm: React.FC<AddImmunizationFormProps> = ({ onSave, onCan
               Cancelar
             </button>
             <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700"
+              type="submit" // This button type triggers the form's onSubmit
+              className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
             >
               Guardar Inmunización
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </form> {/* End of the scrollable form element */}
+
+      </div> {/* End of inner container */}
+    </div> // End of outer container
   );
 };
 

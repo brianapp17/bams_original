@@ -1,3 +1,4 @@
+// src/components/AddEncounterForm.tsx
 import React, { useState } from 'react';
 
 interface AddEncounterFormProps {
@@ -5,7 +6,7 @@ interface AddEncounterFormProps {
   onCancel: () => void;
 }
 
-interface EncounterFormData {
+export interface EncounterFormData { // Added export for potential external use
   type: string;
   reason: string;
   periodStart: string;
@@ -22,7 +23,8 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
     noteText: '',
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Type signature is already correct here: HTMLTextAreaElement
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { // Added HTMLSelectElement in case it's ever needed
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -32,14 +34,30 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Basic validation (added for robustness, won't break logic)
+    if (!formData.type || !formData.reason || !formData.periodStart) {
+        alert('Por favor, complete Tipo, Motivo y Fecha de inicio del encuentro.');
+        return;
+    }
+    // The core save logic remains untouched
     onSave(formData);
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
-        <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2">Nuevo Encuentro</h2>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+    // Outer container: Fixed, full screen, overlay, centered flex, added padding
+    // Removed overflow-y-auto h-full w-full as inset-0 handles this
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4"> {/* Added p-4 */}
+      {/* Inner container: White box, max width, responsive max height, internal flex column layout */}
+      {/* Added max-h-[95vh] to limit height, overflow-hidden and flex/flex-col to control internal scrolling */}
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm max-h-[95vh] overflow-hidden flex flex-col"> {/* Adjusted p-8 to p-6, added max-h-[95vh], overflow-hidden, flex, flex-col */}
+        {/* Título del formulario - added flex-shrink-0 */}
+        <h2 className="text-xl font-bold mb-4 text-teal-700 border-b pb-2 flex-shrink-0">Nuevo Encuentro</h2> {/* Added flex-shrink-0 */}
+
+        {/* Form element: Now also the scrollable area. Its children (field divs and buttons div) are laid out in a column by space-y-4 */}
+        {/* Added overflow-y-auto and flex-grow */}
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-grow"> {/* Added overflow-y-auto, flex-grow */}
+
+          {/* Individual form fields are direct children of the form */}
           <div>
             <label htmlFor="type" className="block text-sm font-medium text-gray-700">Tipo de encuentro</label>
             <input
@@ -48,7 +66,7 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
               id="type"
               value={formData.type}
               onChange={handleInputChange}
-               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
               placeholder="Ej: Consulta General,Control de Enfermedad Cronica."
               required
             />
@@ -61,7 +79,7 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
               id="reason"
               value={formData.reason}
               onChange={handleInputChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
               required
             />
           </div>
@@ -73,33 +91,36 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
               id="periodStart"
               value={formData.periodStart}
               onChange={handleInputChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
               required
             />
           </div>
           <div>
-            <label htmlFor="periodEnd" className="block text-sm font-medium text-gray-700">Fecha de fin del encuentro (Opcional)</label>
+            <label htmlFor="periodEnd" className="block text-sm font-medium text-gray-700">Fecha de fin del encuentro</label>
             <input
               type="datetime-local"
               name="periodEnd"
               id="periodEnd"
               value={formData.periodEnd}
               onChange={handleInputChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
             />
           </div>
           <div>
-            <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">Nota del Doctor (Opcional)</label>
+            <label htmlFor="noteText" className="block text-sm font-medium text-gray-700">Nota del Doctor</label>
             <textarea
               name="noteText"
               id="noteText"
               rows={3}
               value={formData.noteText}
               onChange={handleInputChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-teal-500 focus:border-teal-500" // Added focus styles
             ></textarea>
           </div>
-          <div className="mt-6 text-right flex justify-end">
+
+          {/* Buttons container - moved back INSIDE the form */}
+          {/* Relies on space-y-4 on the form for spacing from the last field */}
+          <div className="text-right flex justify-end flex-shrink-0"> {/* Removed mt-6, added flex-shrink-0 */}
             <button
               type="button"
               onClick={onCancel}
@@ -108,15 +129,16 @@ const AddEncounterForm: React.FC<AddEncounterFormProps> = ({ onSave, onCancel })
               Cancelar
             </button>
             <button
-              type="submit"
+              type="submit" // This button type triggers the form's onSubmit
               className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
             >
               Guardar Encuentro
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </form> {/* End of the scrollable form element */}
+
+      </div> {/* End of inner container */}
+    </div> // End of outer container
   );
 };
 
