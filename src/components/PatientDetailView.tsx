@@ -1,14 +1,14 @@
 // PatientDetailView.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // <--- Añadido useRef
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, onValue, off, push, set } from "firebase/database";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // <--- Añadido para Storage
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { app } from '../firebase';
 import type { Patient, ApiResponse, PatientInfo, ChatMessage, NotaConsultaItem } from '../types';
-import { fetchMarkdown } from '../api'; // <--- Añadido fetchMarkdown
+import { fetchMarkdown } from '../api';
 import { FileText } from 'lucide-react';
-import { jsPDF } from 'jspdf'; // <--- Añadido jsPDF
+import { jsPDF } from 'jspdf';
 
 // Components
 import PatientSidebar from './PatientSidebar';
@@ -29,7 +29,7 @@ import AddClinicalImpressionForm from './AddClinicalImpressionForm';
 import AddImmunizationForm from './AddImmunizationForm';
 import AddMedicationRequestForm from './AddMedicationRequestForm';
 
-// Import the types for form data
+// Import the types for form data (already done, just ensuring they are here)
 import type { ClinicalImpressionFormData } from './AddClinicalImpressionForm';
 import type { ImmunizationFormData } from './AddImmunizationForm';
 import type { MedicationRequestFormData } from './AddMedicationRequestForm';
@@ -55,17 +55,17 @@ const PatientDetailView: React.FC = () => {
   const [showAddResourceMenu, setShowAddResourceMenu] = useState(false);
   const [selectedResourceType, setSelectedResourceType] = useState<string | null>(null);
 
-  // --- NUEVO ESTADO Y REF PARA EL BOTÓN DE REPORTE AI ---
+  // --- ESTADO Y REF PARA EL BOTÓN DE REPORTE AI ---
   const [isDownloadingReport, setIsDownloadingReport] = useState(false);
   const [reportButtonText, setReportButtonText] = useState("Generar reporte IA");
   const reportIntervalIdRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  // --- FIN NUEVO ESTADO Y REF ---
+  // --- FIN ESTADO Y REF ---
 
   const auth = getAuth(app);
   const database = getDatabase(app);
   const storage = getStorage(app); // <--- Instancia de Storage
 
-  // --- NUEVA CONSTANTE PARA MENSAJES DE CARGA DEL REPORTE ---
+  // --- CONSTANTE PARA MENSAJES DE CARGA DEL REPORTE ---
   const reportLoadingMessages = [
     " Generar reporte IA",
     "Analizando historial...",
@@ -79,7 +79,7 @@ const PatientDetailView: React.FC = () => {
     "Ordenando información...",
     "Informe en camino...",
   ];
-  // --- FIN NUEVA CONSTANTE ---
+  // --- FIN CONSTANTE ---
 
   const fetchMedicalRecordsFromFirebase = useCallback((doctorUid: string, patientId: string) => {
     setIsLoadingRecords(true);
@@ -203,7 +203,7 @@ const PatientDetailView: React.FC = () => {
     };
   }, [auth, database, navigate, patientId, fetchMedicalRecordsFromFirebase]);
 
-  // --- NUEVO USEEFFECT PARA LIMPIAR INTERVALO DEL REPORTE ---
+  // --- USEEFFECT PARA LIMPIAR INTERVALO DEL REPORTE ---
   useEffect(() => {
     return () => {
       if (reportIntervalIdRef.current) {
@@ -211,7 +211,7 @@ const PatientDetailView: React.FC = () => {
       }
     };
   }, []);
-  // --- FIN NUEVO USEEFFECT ---
+  // --- FIN USEEFFECT ---
 
 
   const handleSaveNewConsultationNote = async (noteContent: NotaConsultaItem): Promise<boolean> => {
@@ -241,6 +241,7 @@ const PatientDetailView: React.FC = () => {
   const handleSelectResource = (resourceType: string) => { setSelectedResourceType(resourceType); setShowAddResourceMenu(false); };
   const handleCancelAddResource = () => { setSelectedResourceType(null); setShowAddResourceMenu(false); };
 
+  // --- START FORM SAVE HANDLERS (Logic Untouched) ---
   const handleSaveObservation = async (formData: ObservationFormData) => {
     if (!patientId || !auth.currentUser) { alert('Error: Paciente o usuario no definido.'); return; }
     const doctorUid = auth.currentUser.uid;
@@ -353,8 +354,10 @@ const PatientDetailView: React.FC = () => {
     try { await set(newRef, dataToSave); handleCancelAddResource(); }
     catch (error: unknown) { alert(`Error al guardar la Solicitud de Medicamento: ${(error instanceof Error) ? error.message : String(error)}`); }
   };
+  // --- END FORM SAVE HANDLERS ---
 
-  // --- NUEVA FUNCIÓN handleDownloadReport (ANTES handleDownload en Header) ---
+
+  // --- FUNCIÓN handleDownloadReport (Logic Untouched) ---
   const handleDownloadReport = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -426,7 +429,7 @@ const PatientDetailView: React.FC = () => {
         const pdfStorageRef = storageRef(storage, `doctor_reports/${doctorUid}/${fileName}`);
         const uploadResult = await uploadBytes(pdfStorageRef, pdfBlob);
         const downloadURL = await getDownloadURL(uploadResult.ref);
-        
+
         // Usamos la instancia de database definida en este componente
         const medicalReportsRef = ref(database, `doctors/${doctorUid}/medicalReports`);
         const newReportRef = push(medicalReportsRef);
@@ -457,8 +460,10 @@ const PatientDetailView: React.FC = () => {
       if (reportIntervalIdRef.current) clearInterval(reportIntervalIdRef.current);
     }
   };
-  // --- FIN NUEVA FUNCIÓN handleDownloadReport ---
+  // --- FIN FUNCIÓN handleDownloadReport ---
 
+
+  // --- Render Logic ---
 
   if (patientId && isLoadingPatient) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Cargando expediente...</p></div>;
@@ -476,60 +481,73 @@ const PatientDetailView: React.FC = () => {
     );
   }
 
+  // This block renders the main layout once a patient is loaded
   if (patient && patientId && !isLoadingPatient && !patientError && patientInfo) {
 
     return (
       <div className="h-screen bg-gray-50 flex flex-col">
-        <Header resetSearch={() => {}} /> {/* Ya no pasamos props de reporte al Header */}
+        {/* Header is flex-shrink-0 */}
+        <Header resetSearch={() => {}} />
 
-        <div className="flex flex-1 p-4 gap-4 items-stretch overflow-hidden">
-          <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col">
+        {/* Main content area: Uses flex-1 to take remaining height. Flex-col on mobile, flex-row on large */}
+        <div className="flex flex-1 p-4 gap-4 items-stretch overflow-hidden flex-col lg:flex-row"> {/* Added flex-col lg:flex-row */}
+
+          {/* Patient Sidebar: Full width on mobile, fixed width on large. Order 3 on mobile, 1 on large */}
+          <div className="w-full flex-shrink-0 flex flex-col order-3 lg:w-72 xl:w-80 lg:order-1"> {/* Added w-full, order-3 lg:order-1 */}
             <PatientSidebar
               patientInfo={patientInfo}
-              selectedCategory={selectedCategory} // Pasa el estado directamente
-              setSelectedCategory={setSelectedCategory} // Pasa el setter directamente
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
               fhirData={fhirDataString}
               onSaveNewNote={handleSaveNewConsultationNote}
             />
           </div>
 
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full">
+          {/* Main Records Area: Flex-1 to take space. Order 1 on mobile, 2 on large */}
+          {/* min-w-0 is important to prevent overflow when flex items have large content */}
+          <div className="flex-1 flex flex-col min-w-0 order-1 lg:order-2"> {/* Added order-1 lg:order-2 */}
+            <div className="max-w-full mx-auto bg-white p-6 rounded-lg shadow-md flex flex-col flex-1 min-h-0 w-full"> {/* Changed max-w-4xl to max-w-full */}
               <div className="flex-shrink-0">
-                <div className="mb-4 flex space-x-4 flex-shrink-0 p-2 items-center"> {/* Añadido items-center para alinear botones */}
-                  <h2 className="text-xl font-bold text-teal-800 mr-auto"> {/* mr-auto para empujar botones a la derecha */}
+                {/* Header controls for main area: flex-wrap on mobile to prevent overflow */}
+                <div className="mb-4 flex gap-2 flex-wrap flex-shrink-0 p-2 items-center"> {/* Changed space-x-4 to gap-2, added flex-wrap */}
+                  {/* Title takes remaining space if available */}
+                  <h2 className="text-xl font-bold text-teal-800 mr-auto flex-grow"> {/* Added flex-grow */}
                     Historial Médico
                   </h2>
-                  {/* Botón "Volver a Expedientes" ELIMINADO de aquí */}
+                  {/* Buttons */}
                   <button
                     onClick={handleAddResourceClick}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 flex-shrink-0" 
                   >
                     Agregar al Expediente
                   </button>
-                  {/* --- NUEVO BOTÓN DE REPORTE AI AQUÍ --- */}
-                  {patientId && ( // Solo mostrar si hay un patientId (aunque ya estamos dentro de un bloque que lo asegura)
+                  {/* Report AI Button */}
+                  {patientId && (
                     <button
-                      className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors duration-150 ${isDownloadingReport ? 'cursor-wait opacity-75' : 'hover:bg-teal-700'}`}
+                      className={`text-white font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors duration-150 flex-shrink-0 ${isDownloadingReport ? 'cursor-wait opacity-75' : 'hover:bg-teal-700'}`} 
                       onClick={handleDownloadReport}
                       disabled={isDownloadingReport}
-                      style={{ backgroundColor: '#29a3ac' }} // Mismo estilo que tenía en Header
+                      style={{ backgroundColor: '#29a3ac' }}
                     >
+                      {isDownloadingReport && <FileText className="animate-pulse w-5 h-5" />} {/* Optional: Add loading icon */}
                       {reportButtonText}
+                       {!isDownloadingReport && <FileText className="w-5 h-5" />} {/* Show icon when not loading */}
                     </button>
                   )}
-                  {/* --- FIN NUEVO BOTÓN --- */}
-                  <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                  {/* View Reports Button */}
+                  <Link to="/reportes-medicos" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 flex-shrink-0"> {/* Added flex-shrink-0 */}
                     <FileText className="w-5 h-5 mr-2" />
                     Ver Reportes IA
                   </Link>
                 </div>
+                {/* Search Bar is flex-shrink-0 */}
                 <SearchBar
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   handleSearch={handleSearchSubmit}
                 />
               </div>
+              {/* Medical Records List: Takes remaining height, allows internal scrolling */}
               <div className="flex-1 overflow-y-auto min-h-0">
                 {isLoadingRecords ? (
                   <div className="text-center text-gray-600">Cargando registros médicos...</div>
@@ -546,7 +564,8 @@ const PatientDetailView: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-96 border-l border-gray-200 flex flex-col">
+          {/* Chat Sidebar: Full width on mobile, fixed width on large. Border top on mobile, border left on large. Order 2 on mobile, 3 on large */}
+          <div className="w-full border-t border-gray-200 flex flex-col order-2 lg:w-96 lg:border-l lg:border-t-0 lg:order-3"> {/* Added w-full, border-t, lg:border-l, lg:border-t-0, order-2 lg:order-3 */}
             <ChatSidebar
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
@@ -558,6 +577,7 @@ const PatientDetailView: React.FC = () => {
           </div>
         </div>
 
+        {/* Modals are positioned fixed, so they don't interfere with the main layout flex */}
         {showAddResourceMenu && selectedResourceType === null && (
           <AddResourceMenu onSelectResource={handleSelectResource} onCancel={handleCancelAddResource} />
         )}
