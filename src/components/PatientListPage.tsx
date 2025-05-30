@@ -69,38 +69,46 @@ const PatientListPage: React.FC = () => {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-       {/* Header con botón de regreso, título centrado y botón Dashboard */}
-      <div className="flex items-center justify-between mb-6">
+    // MODIFIED: Adjusted padding for smaller screens
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+       {/* Header con botón de regreso, título y botón Dashboard */}
+       {/* MODIFIED: flex-wrap and gap for better wrapping on small screens */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
 
         {/* Botón para volver a la vista anterior */}
        <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
+          // MODIFIED: Slightly smaller padding on smallest screens
+          className="inline-flex items-center px-3 py-2 md:px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 md:mr-2" /> {/* Hide text on very small screens if needed, or just icon */}
+          <span className="hidden md:inline">Volver</span>
         </button>
         
         
-        {/* Título centrado */}
+        {/* Título centrado (o casi, con flex-grow) */}
+        {/* MODIFIED: Adjusted text size */}
         <div className="flex-grow text-center">
-          <h1 className="text-3xl font-bold text-teal-800">Expedientes de Pacientes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-teal-800">Expedientes</h1>
         </div>
        
- {/* Botón para volver al Dashboard */}
- <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
-          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        {/* Botón para volver al Dashboard */}
+        {/* MODIFIED: Slightly smaller padding on smallest screens */}
+        <Link 
+            to="/dashboard" 
+            className="inline-flex items-center px-3 py-2 md:px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+        >
+          <svg className="hidden md:block -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          Volver al Dashboard
+          <span className="hidden md:inline">Dashboard</span>
+          <span className="md:hidden">Dash</span> {/* Shorter text for mobile */}
         </Link>
-        
-
-
       </div>
 
       <div className="max-w-8xl mx-auto">
-        <p className="text-center text-gray-600 mb-8">
+        {/* MODIFIED: Adjusted text size and margin */}
+        <p className="text-center text-gray-600 mb-6 text-sm sm:text-base">
           Aquí puede visualizar y buscar en los expedientes de sus pacientes registrados.
         </p>
 
@@ -113,40 +121,43 @@ const PatientListPage: React.FC = () => {
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Buscar paciente por DUI, nombre o apellido..."
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 text-lg"
+              // MODIFIED: Adjusted padding and text size
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-base sm:p-3 sm:text-lg"
             />
         </div>
 
         {isLoadingPatients && patients.length === 0 ? (
-          <div className="text-center text-gray-600 text-lg">Cargando expedientes...</div>
+          <div className="text-center text-gray-600 text-base sm:text-lg">Cargando expedientes...</div>
         ) : patientsError  && !auth.currentUser ? (
            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
             <span className="block sm:inline">{patientsError}</span>
           </div>
         ) : filteredPatients.length === 0 ? (
-           <div className="text-center text-gray-600 text-lg">No se encontraron expedientes{searchQuery && ` para "${searchQuery}"`}.</div>
+           <div className="text-center text-gray-600 text-base sm:text-lg">No se encontraron expedientes{searchQuery && ` para "${searchQuery}"`}.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          // Grid is already responsive: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {filteredPatients.map(patient => (
               <div
                 key={patient.id}
-                className="bg-white p-6 rounded-lg shadow-md border border-gray-200 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
+                // MODIFIED: Slightly smaller padding on cards for smallest screens
+                className="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
                 onClick={() => handlePatientSelect(patient.id)}
               >
-                <p className="text-lg font-semibold text-teal-700 mb-2">👤 {`${patient.name?.[0]?.given?.[0] || ''} ${patient.name?.[0]?.family || ''}`}</p>
-                <p className="text-sm text-gray-600 mb-1">🪪 DUI: {patient.dui}</p>
-                <p className="text-sm text-gray-600 mb-1">🚻 Género: {patient.gender === 'male' ? 'Masculino' : patient.gender === 'female' ? 'Femenino' : patient.gender || 'N/A'}</p>
-                <p className="text-sm text-gray-600">🎂 Fecha de nacimiento: {patient.birthDate}</p>
+                {/* MODIFIED: Adjusted text sizes within cards */}
+                <p className="text-md sm:text-lg font-semibold text-teal-700 mb-2">👤 {`${patient.name?.[0]?.given?.[0] || ''} ${patient.name?.[0]?.family || ''}`}</p>
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">🪪 DUI: {patient.dui}</p>
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">🚻 Género: {patient.gender === 'male' ? 'Masculino' : patient.gender === 'female' ? 'Femenino' : patient.gender || 'N/A'}</p>
+                <p className="text-xs sm:text-sm text-gray-600">🎂 Fecha de nacimiento: {patient.birthDate}</p>
               </div>
             ))}
           </div>
         )}
          {!isLoadingPatients && !patientsError && patients.length > 0 && filteredPatients.length > 0 && filteredPatients.length < 6 && (
-            <div className="mt-12 text-center text-gray-600 italic">
+            <div className="mt-8 md:mt-12 text-center text-gray-600 italic text-sm">
                 <p>Utilice la barra de búsqueda para encontrar pacientes rápidamente por nombre o DUI.</p>
             </div>
          )}
-
       </div>
     </div>
   );

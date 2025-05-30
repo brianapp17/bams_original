@@ -83,7 +83,6 @@ const NewConsultationPage: React.FC = () => {
 
   const handleCreatePatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Auth check already done by top-level useEffect, but good for direct action
     const user = auth.currentUser;
     if (!user) {
       navigate('/login');
@@ -151,13 +150,13 @@ const NewConsultationPage: React.FC = () => {
       navigate(`/expedientes/${patientId}`);
   }
 
-  // Render a loading state or nothing while initial auth check is happening
   if (isAuthLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Verificando autenticación...</p></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col p-8">
+    // MODIFIED: Adjusted padding for smaller screens
+    <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
        <div className="mb-8 self-start">
         <Link to="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
           <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -166,11 +165,12 @@ const NewConsultationPage: React.FC = () => {
           Volver al Dashboard
         </Link>
       </div>
-      <div className="max-w-8xl mx-auto flex w-full space-x-8 flex-grow">
+      {/* MODIFIED: Changed to flex-col on small screens, md:flex-row, and using gap-8 */}
+      <div className="max-w-8xl mx-auto flex flex-col md:flex-row w-full gap-8 flex-grow">
         {/* Left Section: Nuevo Paciente / Form */}
-        <div className="flex-1 bg-white p-8 rounded-lg shadow-md flex flex-col items-center justify-center">
+        <div className="flex-1 bg-white p-6 md:p-8 rounded-lg shadow-md flex flex-col items-center justify-center">
           {!showNewPatientForm ? (
-            <div className="text-center">
+            <div className="text-center w-full"> {/* Added w-full for consistency */}
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Nuevo Paciente</h2>
               <p className="text-gray-600 mb-6">Iniciar una consulta con un paciente que no está registrado.</p>
               <button
@@ -237,7 +237,7 @@ const NewConsultationPage: React.FC = () => {
           )}
         </div>
         {/* Right Section: Paciente Registrado / List */}
-        <div className="flex-1 bg-white p-8 rounded-lg shadow-md flex flex-col">
+        <div className="flex-1 bg-white p-6 md:p-8 rounded-lg shadow-md flex flex-col">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Seleccionar Paciente Registrado</h2>
           <div className="mb-4">
               <label htmlFor="patient-search" className="sr-only">Buscar paciente por DUI o nombre</label>
@@ -246,14 +246,14 @@ const NewConsultationPage: React.FC = () => {
           {isLoadingPatients ? (
             <div className="text-center text-gray-600">Cargando pacientes...</div>
           ) : patientsError && !auth.currentUser ? (
-             // This will likely not be hit often if top-level auth check redirects
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
               <span className="block sm:inline">{patientsError}</span>
             </div>
           ) : filteredPatients.length === 0 ? (
              <div className="text-center text-gray-600">No se encontraron pacientes{searchQuery && ` para "${searchQuery}"`}.</div>
           ) : (
-            <div className="flex-1 overflow-y-auto space-y-4">
+            // Added min-h-[200px] or similar to ensure the list area has some height on mobile if content is short
+            <div className="flex-1 overflow-y-auto space-y-4 min-h-[300px] md:min-h-0">
               {filteredPatients.map(patient => (
                 <div key={patient.id} className="p-4 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-100" onClick={() => handlePatientSelect(patient.id)}>
                   <p className="font-semibold text-gray-800">👤 {`${patient.name?.[0]?.given?.[0] || ''} ${patient.name?.[0]?.family || ''}`}</p>

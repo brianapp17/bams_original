@@ -11,8 +11,8 @@ const Header: React.FC<HeaderProps> = ({ resetSearch }): JSX.Element => {
   const navigate = useNavigate(); // Get navigate function
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 h-14 flex items-center justify-between flex-shrink-0">
-    {/* Botón izquierdo con padding izquierdo igual a px-6 */}
+    <header className="bg-white border-b border-gray-200 px-4 md:px-6 h-14 flex items-center justify-between flex-shrink-0 flex-wrap gap-2">
+    {/* Botón izquierdo */}
     <div className="flex items-center justify-start">
       <button
         onClick={() => navigate(-1)}
@@ -25,21 +25,23 @@ const Header: React.FC<HeaderProps> = ({ resetSearch }): JSX.Element => {
   
     {/* Título central */}
     <div
-      className="flex-grow text-center flex items-center justify-center gap-2 text-teal-800 cursor-pointer"
+      className="flex-grow text-center flex items-center justify-center gap-2 text-teal-800 cursor-pointer min-w-0"
       onClick={resetSearch}
     >
-      <UserRoundCog className="w-6 h-6" />
-      <span className="text-lg font-medium">Búsqueda Artificial Médica Salud</span>
+      <UserRoundCog className="w-5 h-5 md:w-6 md:h-6" />
+      <span className="text-base md:text-lg font-medium truncate">
+        Búsqueda Artificial Médica Salud
+      </span>
     </div>
   
-    {/* Botón derecho con padding derecho simétrico */}
+    {/* Botón derecho */}
     <div className="flex items-center justify-end">
       <Link
         to="/dashboard"
-        className="inline-flex items-center h-10 px-3 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 whitespace-nowrap"
+        className="inline-flex items-center h-10 px-2 md:px-3 border border-transparent text-xs md:text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 whitespace-nowrap"
       >
         <svg
-          className="-ml-1 mr-2 h-5 w-5"
+          className="-ml-1 mr-1 h-4 w-4 md:h-5 md:w-5"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
@@ -51,10 +53,11 @@ const Header: React.FC<HeaderProps> = ({ resetSearch }): JSX.Element => {
             clipRule="evenodd"
           />
         </svg>
-        Volver al Dashboard
+        <span className="hidden sm:inline">Volver al Dashboard</span>
       </Link>
     </div>
   </header>
+  
   
   
 
