@@ -1,7 +1,8 @@
 // PatientSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { PatientInfo, NotaConsultaItem } from '../types';
-import { User, Mic, FileUp, Scan, CheckCircle, Loader2, Maximize, X } from 'lucide-react';
+// Import Chevron icons
+import { User, Mic, FileUp, Scan, CheckCircle, Loader2, Maximize, X, ChevronUp, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateNoteFromAudio } from '../api';
@@ -42,6 +43,9 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   fhirData,
   onSaveNewNote
 }) => {
+  // State for Patient Info collapse
+  const [isPatientInfoOpen, setIsPatientInfoOpen] = useState(true); // State to control visibility
+
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingError, setRecordingError] = useState<string | null>(null);
@@ -410,6 +414,9 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   // Reset states when patient changes, including cleaning up recording if active
   useEffect(() => {
       if (patientInfo) {
+          // Reset patient info section state
+          setIsPatientInfoOpen(true);
+
           setUploadedImages([]);
           setAnalysisResults(null);
           setAnalysisError(null);
@@ -471,6 +478,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
       }
   };
 
+  // Handlers for Note Modal
   const handleMaximizeNote = () => {
     setIsNoteModalOpen(true);
   };
@@ -479,6 +487,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     setIsNoteModalOpen(false);
   };
 
+   // Handlers for Analysis Modal
    const handleMaximizeAnalysis = () => {
     setIsAnalysisModalOpen(true);
   };
@@ -487,15 +496,30 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     setIsAnalysisModalOpen(false);
   };
 
+  // Handler for Patient Info collapse
+  const togglePatientInfo = () => {
+    setIsPatientInfoOpen(!isPatientInfoOpen);
+  };
+
 
   return (
     <aside className="bg-white rounded-lg shadow-md h-full flex flex-col overflow-hidden">
       <div className="p-4 pb-0 flex-shrink-0">
-          <div className="flex items-center gap-2 text-gray-800 mb-3">
-            <User className="w-5 h-5" />
-            <span className="font-medium">Información del Paciente</span>
+           {/* Clickable Header for Patient Info */}
+          <div
+            className="flex items-center gap-2 text-gray-800 mb-3 cursor-pointer" // Added cursor-pointer
+            onClick={togglePatientInfo} // Added onClick handler
+          >
+            {/* Conditional Chevron Icon based on collapse state */}
+            {isPatientInfoOpen ? (
+               <ChevronDown className="w-5 h-5" />
+             ) : (
+               <ChevronUp className="w-5 h-5" />
+             )}
+             <span className="font-medium">Información del Paciente</span>
           </div>
-          {patientInfo && (
+           {/* Patient Info Content - Conditionally Rendered */}
+          {patientInfo && isPatientInfoOpen && ( // Added isPatientInfoOpen condition
             <div className="space-y-2 text-sm text-gray-700 mb-4">
               <div>
                 <p className="text-xs text-gray-500">Nombre</p>
@@ -515,7 +539,8 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
               </div>
             </div>
           )}
-          <hr className="my-4 border-gray-200" />
+          {/* Horizontal Rule - Conditionally Rendered */}
+          {isPatientInfoOpen && <hr className="my-4 border-gray-200" />} {/* Added isPatientInfoOpen condition */}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-6">
