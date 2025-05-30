@@ -137,26 +137,49 @@ const AddMedicationRequestForm: React.FC<AddMedicationRequestFormProps> = ({
               required
             />
           </div>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:gap-x-4">
+  <div className="flex-1">
+    <label htmlFor="intent" className="block text-sm font-medium text-gray-700">
+      Intención
+    </label>
+    <select
+      name="intent"
+      id="intent"
+      value={formData.intent}
+      onChange={handleInputChange}
+      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+      required
+    >
+      <option value="">Seleccionar intención</option>
+      <option value="order">Orden</option>
+      <option value="plan">Plan</option>
+      <option value="proposal">Propuesta</option>
+      <option value="instance-order">Orden de Instancia</option>
+    </select>
+  </div>
 
-          <div>
-            <label htmlFor="intent" className="block text-sm font-medium text-gray-700">
-              Intención
-            </label>
-            <select
-              name="intent"
-              id="intent"
-              value={formData.intent}
-              onChange={handleInputChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-              required
-            >
-              <option value="">Seleccionar intención</option>
-              <option value="order">Orden</option>
-              <option value="plan">Plan</option>
-              <option value="proposal">Propuesta</option>
-              <option value="instance-order">Orden de Instancia</option>
-            </select>
-          </div>
+  <div className="flex-1">
+    <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+      Estado
+    </label>
+    <select
+      name="status"
+      id="status"
+      value={formData.status}
+      onChange={handleInputChange}
+      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+      required
+    >
+      <option value="">Seleccionar estado</option>
+      <option value="active">Activa</option>
+      <option value="completed">Completada</option>
+      <option value="stopped">Detenida</option>
+      <option value="draft">Borrador</option>
+      <option value="cancelled">Cancelada</option>
+      <option value="entered-in-error">Ingresada con Error</option>
+    </select>
+  </div>
+</div>
 
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-gray-700">
