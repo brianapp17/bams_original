@@ -1,7 +1,7 @@
 // PatientSidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { PatientInfo, NotaConsultaItem } from '../types';
-import { User, Mic, FileUp, Scan, CheckCircle, Loader2 } from 'lucide-react';
+import { User, Mic, FileUp, Scan, CheckCircle, Loader2, Maximize, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateNoteFromAudio } from '../api';
@@ -53,11 +53,13 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   const [savedNotes, setSavedNotes] = useState<FormattedNote[]>([]);
   const [selectedSavedNoteId, setSelectedSavedNoteId] = useState<string>('');
   const [selectedNoteContent, setSelectedNoteContent] = useState<string | null>(null);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false); // Estado para el modal de notas
 
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false); // Nuevo estado para el modal de análisis
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisResultsRef = useRef<HTMLDivElement>(null);
@@ -103,7 +105,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     }
   }, [patientInfo, selectedSavedNoteId]);
 
-  // Nuevo useEffect para manejar el estado temporal de 'success' o 'error'
+  // Nuevo useEffect para manejar el estado temporal de 'success' o 'error' en la generación de notas
   useEffect(() => {
     if (noteGenerationStatus === 'success' || noteGenerationStatus === 'error') {
       const timer = setTimeout(() => {
@@ -289,6 +291,8 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     setUploadedImages([]);
     setAnalysisResults(null);
     setAnalysisError(null);
+    // Cerrar el modal de análisis si estaba abierto al subir una nueva imagen
+    setIsAnalysisModalOpen(false);
     fileInputRef.current?.click();
   };
 
@@ -299,15 +303,18 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
       const validFiles = Array.from(files).filter(file => allowedTypes.includes(file.type));
       if (validFiles.length > 0) {
           setUploadedImages([validFiles[0]]);
+          setAnalysisResults(null); // Clear previous analysis results when new file is selected
           setAnalysisError(null); // Limpiar error si se sube un archivo válido
       } else {
           setUploadedImages([]);
+          setAnalysisResults(null); // Clear previous analysis results if invalid file
           setAnalysisError("Tipo de archivo no permitido. Por favor, sube una imagen (JPEG, PNG, GIF, BMP, WEBP).");
       }
       console.log("Archivos seleccionados:", validFiles);
       if (event.target) event.target.value = ''; // Limpiar el input
     } else {
         setUploadedImages([]);
+        setAnalysisResults(null); // Clear previous analysis results if selection is cancelled
         setAnalysisError(null);
         console.log("Selección de archivos cancelada.");
     }
@@ -325,8 +332,11 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     if (isAnalyzing) return;
 
     setIsAnalyzing(true);
-    setAnalysisResults(null);
+    setAnalysisResults(null); // Clear previous results before starting new analysis
     setAnalysisError(null);
+    // Close modal if it was open from a previous analysis
+    setIsAnalysisModalOpen(false);
+
 
     const apiUrl = 'https://bams-127465468754.us-central1.run.app/bamsexams';
     const formData = new FormData();
@@ -364,9 +374,9 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
             }
         } catch (jsonError: any) {
             console.error('Error al procesar la respuesta de la API (parseo exterior o estructura):', jsonError);
-             // Si falla el parseo JSON, pero la respuesta original es un string, intentar mostrarla
+             // If JSON parsing fails, but the original response is a string, try to show it
              if (resultText && typeof resultText === 'string') {
-                 setAnalysisResults(resultText); // Muestra el texto recibido aunque no sea el formato esperado
+                 setAnalysisResults(resultText); // Show the raw text received even if not expected format
              } else {
                 setAnalysisError(`Error al procesar la respuesta del análisis: ${jsonError.message}. Intenta de nuevo.`);
              }
@@ -404,12 +414,14 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           setAnalysisResults(null);
           setAnalysisError(null);
           setIsAnalyzing(false);
+          setIsAnalysisModalOpen(false); // Close analysis modal on patient change
           setAudioBlob(null);
           setRecordingError(null);
           setIsRecording(false);
           setNoteGenerationStatus('idle'); // Resetear estado de notas al cambiar de paciente
           setSelectedSavedNoteId(''); // Resetear selección de nota guardada al cambiar de paciente
           setSelectedNoteContent(null); // Resetear contenido de nota guardada
+          setIsNoteModalOpen(false); // Cerrar el modal de notas al cambiar de paciente
 
           // Cleanup recording resources if active when patient changes
            if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
@@ -457,6 +469,22 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           default:
               return null;
       }
+  };
+
+  const handleMaximizeNote = () => {
+    setIsNoteModalOpen(true);
+  };
+
+  const handleCloseNoteModal = () => {
+    setIsNoteModalOpen(false);
+  };
+
+   const handleMaximizeAnalysis = () => {
+    setIsAnalysisModalOpen(true);
+  };
+
+  const handleCloseAnalysisModal = () => {
+    setIsAnalysisModalOpen(false);
   };
 
 
@@ -572,10 +600,21 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                       ))}
                   </select>
                   {selectedNoteContent && (
-                    <div
-                        className="mt-2 p-3 text-sm bg-gray-100 rounded-md max-h-[200px] overflow-y-auto text-gray-800 prose prose-sm max-w-none"
-                    >
+                    <div className="mt-2 p-3 text-sm bg-gray-100 rounded-md max-h-[200px] overflow-y-auto text-gray-800 relative">
+                      <div className="absolute top-2 right-2 z-10"> {/* Added z-10 to ensure button is clickable */}
+                        <button
+                            onClick={handleMaximizeNote}
+                            className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                            aria-label="Maximizar nota"
+                            title="Maximizar nota"
+                        >
+                            <Maximize className="w-4 h-4 text-gray-600" />
+                        </button>
+                      </div>
+                      {/* Add padding to the right of the content div to prevent text overlap */}
+                      <div className="prose prose-sm max-w-none pr-6">
                         <ReactMarkdown children={selectedNoteContent} remarkPlugins={[remarkGfm]} />
+                      </div>
                     </div>
                   )}
               </div>
@@ -584,30 +623,48 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
           {patientInfo && (
             <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Análisis de Exámenes IA</h3>
-                <div
-                    ref={analysisResultsRef}
-                    className="mt-2 p-3 text-sm bg-gray-100 rounded-md min-h-[100px] max-h-[300px] overflow-y-auto text-gray-800"
-                >
-                    {isAnalyzing ? (
-                        <p className="text-blue-600 italic">Analizando imagen con IA...</p>
-                    ) : analysisError ? (
-                        <p className="text-red-600">{analysisError}</p>
-                    ) : analysisResults ? (
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown children={analysisResults} remarkPlugins={[remarkGfm]} />
-                        </div>
-                    ) : uploadedImages.length > 0 ? (
-                        <>
-                          <p className="text-gray-600">{uploadedImages.length} imagen(es) seleccionada(s):</p>
-                           {uploadedImages.map((file, index) => (
-                               <p key={index} className="text-gray-600 text-xs">- {file.name}</p>
-                           ))}
-                           {!fhirData && <p className="text-orange-600 text-sm italic mt-2">Esperando datos del paciente para el análisis.</p>}
-                        </>
-                    ) : (
-                        <p className="text-gray-600">Sube una imagen de exámen para análisis IA.</p>
+                {/* Container for analysis results and maximize button */}
+                <div className="mt-2 relative"> {/* Made parent relative */}
+                     {/* Maximize button - visible only when results are present and not analyzing */}
+                    {analysisResults && !isAnalyzing && (
+                       <div className="absolute top-2 right-2 z-10"> {/* Position absolute, added z-10 */}
+                           <button
+                               onClick={handleMaximizeAnalysis}
+                               className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                               aria-label="Maximizar análisis"
+                               title="Maximizar análisis"
+                           >
+                               <Maximize className="w-4 h-4 text-gray-600" />
+                           </button>
+                       </div>
                     )}
+                    {/* Analysis Results Display */}
+                    <div
+                        ref={analysisResultsRef}
+                        className={`p-3 text-sm bg-gray-100 rounded-md min-h-[100px] max-h-[300px] overflow-y-auto text-gray-800 ${analysisResults ? 'pr-6' : ''}`} 
+                    >
+                        {isAnalyzing ? (
+                            <p className="text-blue-600 italic">Analizando imagen con IA...</p>
+                        ) : analysisError ? (
+                            <p className="text-red-600">{analysisError}</p>
+                        ) : analysisResults ? (
+                            <div className="prose prose-sm max-w-none"> {/* Ensure prose is inside */}
+                              <ReactMarkdown children={analysisResults} remarkPlugins={[remarkGfm]} />
+                            </div>
+                        ) : uploadedImages.length > 0 ? (
+                            <>
+                              <p className="text-gray-600">{uploadedImages.length} imagen(es) seleccionada(s):</p>
+                               {uploadedImages.map((file, index) => (
+                                   <p key={index} className="text-gray-600 text-xs">- {file.name}</p>
+                               ))}
+                               {!fhirData && <p className="text-orange-600 text-sm italic mt-2">Esperando datos del paciente para el análisis.</p>}
+                            </>
+                        ) : (
+                            <p className="text-gray-600">Sube una imagen de exámen para análisis IA.</p>
+                        )}
+                    </div>
                 </div>
+
 
                 <div className="flex space-x-2 items-center justify-end mt-4">
                   <input
@@ -636,12 +693,56 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
                     onMouseEnter={(e) => { if (!(uploadedImages.length === 0 || !fhirData || isAnalyzing)) (e.target as HTMLButtonElement).style.backgroundColor = '#238f96'; }}
                     onMouseLeave={(e) => { if (!(uploadedImages.length === 0 || !fhirData || isAnalyzing)) (e.target as HTMLButtonElement).style.backgroundColor = '#29a3ac'; }}
                   >
-                    <Scan className="w-4 h-4 mr-1" /> Analizar IA
+                    {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Scan className="w-4 h-4 mr-1" />} Analizar IA
                   </button>
               </div>
           </div>
           )}
       </div>
+
+        {/* Modal para la nota ampliada */}
+        {isNoteModalOpen && selectedNoteContent && (
+            <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* Added p-4 for small screen safety */}
+                <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh]"> {/* Added flex-col and max-h */}
+                    <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                         <h2 className="text-lg font-semibold text-gray-800">Nota de Consulta</h2>
+                         <button
+                            onClick={handleCloseNoteModal}
+                            className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                            aria-label="Cerrar"
+                            title="Cerrar"
+                        >
+                            <X className="w-5 h-5 text-gray-600" />
+                        </button>
+                    </div>
+                    <div className="prose prose-sm max-w-none overflow-y-auto flex-grow pb-4"> {/* Added flex-grow and pb-4 */}
+                        <ReactMarkdown children={selectedNoteContent} remarkPlugins={[remarkGfm]} />
+                    </div>
+                </div>
+            </div>
+        )}
+
+         {/* Modal para el análisis de exámenes ampliado */}
+        {isAnalysisModalOpen && analysisResults && (
+            <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* Added p-4 */}
+                <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh]"> {/* Added flex-col and max-h */}
+                    <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                         <h2 className="text-lg font-semibold text-gray-800">Análisis de Exámenes IA</h2>
+                         <button
+                            onClick={handleCloseAnalysisModal}
+                            className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                            aria-label="Cerrar"
+                            title="Cerrar"
+                        >
+                            <X className="w-5 h-5 text-gray-600" />
+                        </button>
+                    </div>
+                    <div className="prose prose-sm max-w-none overflow-y-auto flex-grow pb-4"> {/* Added flex-grow and pb-4 */}
+                        <ReactMarkdown children={analysisResults} remarkPlugins={[remarkGfm]} />
+                    </div>
+                </div>
+            </div>
+        )}
     </aside>
   );
 };
