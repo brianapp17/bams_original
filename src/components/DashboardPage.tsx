@@ -385,7 +385,7 @@ const DashboardPage: React.FC = () => {
           {/* Wrapper for logo and title */}
           <div className="flex items-center">
             <img 
-              src="/public/logo.PNG" 
+              src="/logo.PNG" 
               alt="BAMS Logo" 
               className="w-10 h-10 mr-3 md:w-12 md:h-12"
             />

@@ -71,29 +71,20 @@ const PatientListPage: React.FC = () => {
   return (
     // MODIFIED: Adjusted padding for smaller screens
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-       {/* Header con botón de regreso, título y botón Dashboard */}
-       {/* MODIFIED: flex-wrap and gap for better wrapping on small screens */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+       <div className="mb-6 relative flex items-center justify-center">
+  {/* Botón de regreso alineado a la izquierda de forma absoluta */}
+  <button
+    onClick={() => navigate(-1)}
+    className="absolute left-0 inline-flex items-center px-3 py-2 md:px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
+  >
+    <ArrowLeft className="w-5 h-5 md:mr-2" />
+    <span className="hidden md:inline">Volver</span>
+  </button>
 
-        {/* Botón para volver a la vista anterior */}
-       <button
-          onClick={() => navigate(-1)}
-          // MODIFIED: Slightly smaller padding on smallest screens
-          className="inline-flex items-center px-3 py-2 md:px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
-        >
-          <ArrowLeft className="w-5 h-5 md:mr-2" /> {/* Hide text on very small screens if needed, or just icon */}
-          <span className="hidden md:inline">Volver</span>
-        </button>
-        
-        
-        {/* Título centrado (o casi, con flex-grow) */}
-        {/* MODIFIED: Adjusted text size */}
-        <div className="flex-grow text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-teal-800">Expedientes</h1>
-        </div>
-       
-       
-      </div>
+  {/* Título centrado completamente */}
+  <h1 className="text-2xl sm:text-3xl font-bold text-teal-800">Expedientes</h1>
+</div>
+
 
       <div className="max-w-8xl mx-auto">
         {/* MODIFIED: Adjusted text size and margin */}
