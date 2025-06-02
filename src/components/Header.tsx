@@ -34,28 +34,7 @@ const Header: React.FC<HeaderProps> = ({ resetSearch }): JSX.Element => {
       </span>
     </div>
   
-    {/* Botón derecho */}
-    <div className="flex items-center justify-end">
-      <Link
-        to="/dashboard"
-        className="inline-flex items-center h-10 px-2 md:px-3 border border-transparent text-xs md:text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 whitespace-nowrap"
-      >
-        <svg
-          className="-ml-1 mr-1 h-4 w-4 md:h-5 md:w-5"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            fillRule="evenodd"
-            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-            clipRule="evenodd"
-          />
-        </svg>
-        <span className="hidden sm:inline">Volver al Dashboard</span>
-      </Link>
-    </div>
+   
   </header>
   
   

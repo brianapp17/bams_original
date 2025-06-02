@@ -235,12 +235,8 @@ const AllMedicalReportPages: React.FC = () => {
               >
                 <ArrowLeft className="w-4 h-4 mr-1" /> Atrás
               </button>
-               <Link to="/dashboard" className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
-                <svg className="-ml-0.5 mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Dashboard
-              </Link>
+
+              
           </div>
 
            {/* Title */}
