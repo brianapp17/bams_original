@@ -48,7 +48,7 @@ interface EncounterForStats {
   id: string;
   patientId: string; // Necesario para contar pacientes únicos
   date: string; // Fecha del encuentro, ej. encounter.period.start
-  // No necesitamos 'conditions' anidadas aquí si las leemos por separado
+  // No necesitamos 'conditions' anidadas aquí if we read them separately
 }
 
 interface ConditionForStats {
@@ -224,7 +224,7 @@ const DashboardPage: React.FC = () => {
         }, (error) => {
           console.error("Error fetching patients for stats:", error);
           setIsLoadingStats(false);
-          setStats({
+          setStats({ // Clear stats if user logs out
             patientsPerMonth: { labels: [], data: [] },
             consultationsPerWeek: { labels: [], data: [] },
             commonConditions: { labels: [], data: [] },
@@ -382,7 +382,15 @@ const DashboardPage: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-6 md:p-8">
       <div className="max-w-7xl mx-auto"> {/* Slightly wider max-width for better spacing */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-teal-700">Bienvenido a BAMS</h1>
+          {/* Wrapper for logo and title */}
+          <div className="flex items-center">
+            <img 
+              src="/public/logo.PNG" 
+              alt="BAMS Logo" 
+              className="w-10 h-10 mr-3 md:w-12 md:h-12"
+            />
+            <h1 className="text-2xl md:text-3xl font-bold text-teal-700">Bienvenido a BAMS</h1>
+          </div>
           <div className="relative">
             {isLoadingProfile ? (
               <div className="w-12 h-12 md:w-14 md:h-14 bg-gray-300 rounded-full animate-pulse"></div>
