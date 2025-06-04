@@ -1,41 +1,88 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema de Información Médica</title>
+
+    <!-- Iconos -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" href="public/icon-apple.png" />
+
+    <!-- Estilos de Dialogflow -->
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
+
     <style>
+      /* Estilos base del chatbot */
       df-messenger {
         z-index: 999;
         position: fixed;
+        bottom: 60px;
+        right: 16px;
+
+        /* Tamaño reducido del cuadro de chat */
+        --df-messenger-width: 300px;
+        --df-messenger-height: 400px;
+
         --df-messenger-font-color: #000;
         --df-messenger-font-family: Google Sans;
         --df-messenger-chat-background: #FFFFFF;
         --df-messenger-message-user-background: #d3e3fd;
         --df-messenger-message-bot-background: #C8E6C9;
-        bottom: 60px; /* Increased bottom value */
-        right: 1px;
+      }
+
+      /* Reducción del tamaño del botón flotante */
+      df-messenger df-messenger-chat-bubble {
+        transform: scale(0.75); /* Cambiar a 0.6 o 0.5 para hacerlo aún más pequeño */
+        transform-origin: bottom right;
+      }
+
+      /* Ajustes responsive */
+      @media (max-width: 768px) {
+        df-messenger {
+          --df-messenger-width: 90vw;
+          --df-messenger-height: 450px;
+          right: 5vw;
+        }
+      }
+
+      @media (max-width: 480px) {
+        df-messenger {
+          --df-messenger-width: 95vw;
+          --df-messenger-height: 75vh;
+          right: 2.5vw;
+        }
+        df-messenger df-messenger-chat-bubble {
+          transform: scale(0.65);
+        }
+      }
+
+      body {
+        overflow-x: hidden;
       }
     </style>
-    <!-- Google Identity Services script -->
+
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <link rel="apple-touch-icon" href="public/icon-apple.png" />
   </head>
+
   <body>
     <div id="root"></div>
+
+    <!-- Dialogflow -->
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+
+    <!-- Componente -->
     <df-messenger
       location="us-central1"
       project-id="prototipado-ia-robotica"
       agent-id="278425b3-6187-4b4d-8ae5-f819ebcbe7c4"
       language-code="es"
       max-query-length="-1">
-      <df-messenger-chat-bubble
-        chat-title="Asistente de BAMS">
+      <df-messenger-chat-bubble chat-title="Asistente de BAMS">
       </df-messenger-chat-bubble>
     </df-messenger>
+
+    <!-- Tu app -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
